@@ -3,7 +3,6 @@ from __future__ import annotations
 import csv
 import hashlib
 import json
-import os
 import re
 from collections import defaultdict
 from pathlib import Path
@@ -13,6 +12,7 @@ EMAIL_RE = re.compile(r"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", re.I)
 PHONE_RE = re.compile(r"(?<!\d)(?:\+?81[- ]?)?0?\d{1,4}[- ]?\d{1,4}[- ]?\d{3,4}(?!\d)")
 TEXTLIKE = {".txt", ".md", ".csv", ".json", ".log", ".yaml", ".yml"}
 RISKY_EXT = {".csv", ".xlsx", ".xls", ".json", ".sql", ".db", ".sqlite", ".bak"}
+TEXT_ENCODINGS = ("utf-8-sig", "utf-8", "cp932", "utf-16")
 
 
 def sha256_file(path: Path) -> str:
@@ -23,14 +23,19 @@ def sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
-def sample_text(path: Path, limit: int = 1_000_000) -> str:
-    raw = path.read_bytes()[:limit]
-    for enc in ("utf-8-sig", "utf-8", "cp932", "utf-16"):
+def decode_text(raw: bytes) -> str:
+    last_error: UnicodeError | None = None
+    for enc in TEXT_ENCODINGS:
         try:
             return raw.decode(enc)
-        except UnicodeDecodeError:
-            continue
-    return raw.decode("utf-8", errors="ignore")
+        except UnicodeError as exc:
+            last_error = exc
+    raise UnicodeError(f"Unsupported or undecodable text encoding; supported encodings: {', '.join(TEXT_ENCODINGS)}") from last_error
+
+
+def sample_text(path: Path, limit: int = 1_000_000) -> str:
+    with path.open("rb") as fh:
+        return decode_text(fh.read(limit))
 
 
 def audit_folder(root: Path) -> list[dict]:
@@ -65,8 +70,8 @@ def audit_folder(root: Path) -> list[dict]:
                 digest = sha256_file(path)
                 rec["sha256"] = digest
                 hashes[digest].append(len(records))
-            except OSError:
-                rec["notes"].append("hash failed")
+            except OSError as exc:
+                rec["notes"].append(f"hash failed: {exc}")
         else:
             rec["notes"].append("hash skipped >50MB")
         if path.suffix.lower() in TEXTLIKE and size <= 2 * 1024 * 1024:
@@ -78,8 +83,10 @@ def audit_folder(root: Path) -> list[dict]:
                     rec["notes"].append("email candidate")
                 if rec["phone_candidate"]:
                     rec["notes"].append("phone candidate")
-            except OSError:
-                rec["notes"].append("content scan failed")
+            except (OSError, UnicodeError) as exc:
+                rec["notes"].append(f"content scan failed (manual review required): {exc}")
+        elif path.suffix.lower() in TEXTLIKE and size > 2 * 1024 * 1024:
+            rec["notes"].append("content scan skipped >2MB (manual review required)")
         records.append(rec)
 
     group_num = 1
@@ -141,13 +148,13 @@ class App:
         try:
             self.records = audit_folder(self.folder)
             self.listbox.delete(0, END)
-            risky = 0
+            flagged = 0
             for r in self.records:
                 flags = ", ".join(r["notes"])
                 if flags:
-                    risky += 1
+                    flagged += 1
                 self.listbox.insert(END, f"{r['path']} | {r['bytes']:,} bytes | {flags or 'no flag'}")
-            self.listbox.insert(END, f"--- Files: {len(self.records):,} / flagged: {risky:,} ---")
+            self.listbox.insert(END, f"--- Files: {len(self.records):,} / flagged: {flagged:,} ---")
         except Exception as exc:
             messagebox.showerror("Folder Privacy Auditor", str(exc))
 
