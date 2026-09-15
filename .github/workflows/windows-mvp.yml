@@ -1,0 +1,19 @@
+name: Windows MVP Build
+on:
+  push:
+    branches: [windows-mvp-20260915]
+  pull_request:
+    branches: [main]
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build portable EXE
+        shell: powershell
+        run: powershell -ExecutionPolicy Bypass -File .\build-windows-portable.ps1
+      - name: Upload EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-mvp
+          path: dist/*.exe
