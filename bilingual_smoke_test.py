@@ -1,15 +1,14 @@
-from i18n import get_language, set_language, translate
+import i18n
 
-original = get_language()
+original = getattr(i18n, "get_language", lambda: getattr(i18n, "_LANGUAGE", "en"))()
 try:
-    set_language("ja")
-    assert translate("Add files") == "ファイルを追加"
-    assert translate("Scan") == "スキャン"
-    assert translate("Unsupported format: .abc").startswith("未対応形式")
-    set_language("en")
-    assert translate("Add files") == "Add files"
-    assert translate("Scan") == "Scan"
+    i18n.set_language("ja")
+    assert i18n.translate("Choose folder") == "フォルダを選択"
+    assert i18n.translate("Run audit") == "監査を実行"
+    i18n.set_language("en")
+    assert i18n.translate("Choose folder") == "Choose folder"
+    assert i18n.translate("Run audit") == "Run audit"
 finally:
-    set_language(original)
+    i18n.set_language(original)
 
-print("Bilingual UI smoke test: OK")
+print("Folder Privacy Auditor bilingual UI smoke test: OK")
