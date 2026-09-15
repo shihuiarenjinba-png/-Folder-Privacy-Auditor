@@ -4,14 +4,22 @@ import csv
 import hashlib
 import json
 import re
+import stat
 from collections import defaultdict
 from pathlib import Path
 from tkinter import BOTH, END, LEFT, Button, Frame, Label, Listbox, Tk, filedialog, messagebox
 
 EMAIL_RE = re.compile(r"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", re.I)
 PHONE_RE = re.compile(r"(?<!\d)(?:\+?81[- ]?)?0?\d{1,4}[- ]?\d{1,4}[- ]?\d{3,4}(?!\d)")
-TEXTLIKE = {".txt", ".md", ".csv", ".json", ".log", ".yaml", ".yml"}
-RISKY_EXT = {".csv", ".xlsx", ".xls", ".json", ".sql", ".db", ".sqlite", ".bak"}
+LONG_ID_RE = re.compile(r"(?<!\d)\d{10,16}(?!\d)")
+TEXTLIKE = {
+    ".txt", ".md", ".csv", ".tsv", ".json", ".xml", ".log",
+    ".yaml", ".yml", ".ini", ".conf", ".cfg", ".toml",
+}
+RISKY_EXT = {
+    ".csv", ".tsv", ".xlsx", ".xls", ".docx", ".pdf", ".json", ".xml",
+    ".yaml", ".yml", ".log", ".sql", ".db", ".sqlite", ".bak",
+}
 TEXT_ENCODINGS = ("utf-8-sig", "utf-8", "cp932", "utf-16")
 
 
@@ -23,14 +31,26 @@ def sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
+def validate_decoded_text(text: str) -> str:
+    if "\x00" in text:
+        raise UnicodeError("Decoded text contains NUL bytes and appears binary.")
+    if text:
+        controls = sum(ord(ch) < 32 and ch not in "\t\n\r\f" for ch in text)
+        if controls / len(text) > 0.01:
+            raise UnicodeError("Decoded text contains too many control characters and appears binary.")
+    return text
+
+
 def decode_text(raw: bytes) -> str:
     last_error: UnicodeError | None = None
     for enc in TEXT_ENCODINGS:
         try:
-            return raw.decode(enc)
+            return validate_decoded_text(raw.decode(enc))
         except UnicodeError as exc:
             last_error = exc
-    raise UnicodeError(f"Unsupported or undecodable text encoding; supported encodings: {', '.join(TEXT_ENCODINGS)}") from last_error
+    raise UnicodeError(
+        f"Unsupported or undecodable text encoding; supported encodings: {', '.join(TEXT_ENCODINGS)}"
+    ) from last_error
 
 
 def sample_text(path: Path, limit: int = 1_000_000) -> str:
@@ -38,9 +58,22 @@ def sample_text(path: Path, limit: int = 1_000_000) -> str:
         return decode_text(fh.read(limit))
 
 
+def is_hidden_path(path: Path, root: Path) -> bool:
+    rel = path.relative_to(root)
+    if any(part.startswith(".") for part in rel.parts):
+        return True
+    try:
+        attrs = getattr(path.stat(), "st_file_attributes", 0)
+        hidden_flag = getattr(stat, "FILE_ATTRIBUTE_HIDDEN", 0)
+        return bool(hidden_flag and attrs & hidden_flag)
+    except OSError:
+        return False
+
+
 def audit_folder(root: Path) -> list[dict]:
     records: list[dict] = []
     hashes: dict[str, list[int]] = defaultdict(list)
+
     for path in root.rglob("*"):
         if not path.is_file():
             continue
@@ -49,22 +82,26 @@ def audit_folder(root: Path) -> list[dict]:
             size = path.stat().st_size
         except OSError:
             continue
+
         rec = {
             "path": rel,
             "extension": path.suffix.lower(),
             "bytes": size,
-            "hidden": any(part.startswith(".") for part in path.relative_to(root).parts),
+            "hidden": is_hidden_path(path, root),
             "risky_data_type": path.suffix.lower() in RISKY_EXT,
             "email_candidate": False,
             "phone_candidate": False,
+            "long_id_candidate": False,
             "duplicate_group": "",
             "sha256": "",
             "notes": [],
         }
+
         if rec["hidden"]:
             rec["notes"].append("hidden file/path")
         if rec["risky_data_type"]:
             rec["notes"].append("data-bearing file type")
+
         if size <= 50 * 1024 * 1024:
             try:
                 digest = sha256_file(path)
@@ -74,19 +111,24 @@ def audit_folder(root: Path) -> list[dict]:
                 rec["notes"].append(f"hash failed: {exc}")
         else:
             rec["notes"].append("hash skipped >50MB")
+
         if path.suffix.lower() in TEXTLIKE and size <= 2 * 1024 * 1024:
             try:
                 text = sample_text(path)
                 rec["email_candidate"] = bool(EMAIL_RE.search(text))
                 rec["phone_candidate"] = bool(PHONE_RE.search(text))
+                rec["long_id_candidate"] = bool(LONG_ID_RE.search(text))
                 if rec["email_candidate"]:
                     rec["notes"].append("email candidate")
                 if rec["phone_candidate"]:
                     rec["notes"].append("phone candidate")
+                if rec["long_id_candidate"]:
+                    rec["notes"].append("long numeric identifier candidate")
             except (OSError, UnicodeError) as exc:
                 rec["notes"].append(f"content scan failed (manual review required): {exc}")
         elif path.suffix.lower() in TEXTLIKE and size > 2 * 1024 * 1024:
             rec["notes"].append("content scan skipped >2MB (manual review required)")
+
         records.append(rec)
 
     group_num = 1
@@ -103,7 +145,11 @@ def audit_folder(root: Path) -> list[dict]:
 def export_reports(records: list[dict], output_base: Path) -> tuple[Path, Path]:
     csv_path = output_base.with_suffix(".csv")
     json_path = output_base.with_suffix(".json")
-    fields = ["path", "extension", "bytes", "hidden", "risky_data_type", "email_candidate", "phone_candidate", "duplicate_group", "sha256", "notes"]
+    fields = [
+        "path", "extension", "bytes", "hidden", "risky_data_type",
+        "email_candidate", "phone_candidate", "long_id_candidate",
+        "duplicate_group", "sha256", "notes",
+    ]
     with csv_path.open("w", encoding="utf-8-sig", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=fields)
         writer.writeheader()
@@ -126,12 +172,17 @@ class App:
         head = Frame(root, padx=12, pady=12)
         head.pack(fill="x")
         Label(head, text="Folder Privacy Auditor", font=("Segoe UI", 20, "bold")).pack(anchor="w")
-        Label(head, text="Audit a folder locally for data-bearing files, PII candidates, hidden files and duplicates.").pack(anchor="w")
+        Label(
+            head,
+            text="Audit a folder locally for data-bearing files, PII candidates, hidden files and duplicates.",
+        ).pack(anchor="w")
+
         controls = Frame(root, padx=12)
         controls.pack(fill="x")
         Button(controls, text="Choose folder", width=16, command=self.choose).pack(side=LEFT)
         Button(controls, text="Run audit", width=16, command=self.audit).pack(side=LEFT, padx=8)
         Button(controls, text="Export CSV + JSON", width=18, command=self.export).pack(side=LEFT)
+
         self.listbox = Listbox(root, font=("Consolas", 9))
         self.listbox.pack(fill=BOTH, expand=True, padx=12, pady=12)
 
@@ -149,12 +200,18 @@ class App:
             self.records = audit_folder(self.folder)
             self.listbox.delete(0, END)
             flagged = 0
-            for r in self.records:
-                flags = ", ".join(r["notes"])
+            for record in self.records:
+                flags = ", ".join(record["notes"])
                 if flags:
                     flagged += 1
-                self.listbox.insert(END, f"{r['path']} | {r['bytes']:,} bytes | {flags or 'no flag'}")
-            self.listbox.insert(END, f"--- Files: {len(self.records):,} / flagged: {flagged:,} ---")
+                self.listbox.insert(
+                    END,
+                    f"{record['path']} | {record['bytes']:,} bytes | {flags or 'no flag'}",
+                )
+            self.listbox.insert(
+                END,
+                f"--- Files: {len(self.records):,} / flagged: {flagged:,} ---",
+            )
         except Exception as exc:
             messagebox.showerror("Folder Privacy Auditor", str(exc))
 
@@ -163,7 +220,12 @@ class App:
             self.audit()
         if not self.records:
             return
-        p = filedialog.asksaveasfilename(title="Report base name", defaultextension=".csv", initialfile="folder_privacy_audit.csv", filetypes=[("CSV", "*.csv")])
+        p = filedialog.asksaveasfilename(
+            title="Report base name",
+            defaultextension=".csv",
+            initialfile="folder_privacy_audit.csv",
+            filetypes=[("CSV", "*.csv")],
+        )
         if not p:
             return
         try:
