@@ -12,6 +12,9 @@ jobs:
       - name: Build portable EXE
         shell: powershell
         run: powershell -ExecutionPolicy Bypass -File .\build-windows-portable.ps1
+      - name: Run smoke test
+        shell: powershell
+        run: .\.venv-build\Scripts\python.exe .\smoke_test.py
       - name: Upload EXE
         uses: actions/upload-artifact@v4
         with:
