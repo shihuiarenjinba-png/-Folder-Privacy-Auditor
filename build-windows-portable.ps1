@@ -8,6 +8,6 @@ py -3 -m venv $Venv
 $Python = Join-Path $Venv "Scripts\python.exe"
 & $Python -m pip install --upgrade pip
 & $Python -m pip install pyinstaller
-& $Python -m PyInstaller --noconfirm --clean --onefile --windowed --name "FolderPrivacyAuditor" windows_app.py
+& $Python -m PyInstaller --noconfirm --clean --onefile --windowed --name "FolderPrivacyAuditor" desktop_entry.py
 Write-Host "Built: $Root\dist\FolderPrivacyAuditor.exe"
-Write-Host "Before sale: large-folder tests, permission-error tests, malware scan, Authenticode signing and SHA256."
+Write-Host "Before sale: run SALES_RELEASE_CHECKLIST.md, large-folder tests, permission-error tests, JA/EN UI smoke, malware scan, Authenticode signing and SHA256."
