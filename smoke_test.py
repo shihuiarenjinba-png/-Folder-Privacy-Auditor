@@ -24,8 +24,18 @@ with tempfile.TemporaryDirectory() as tmp:
     arbitrary = root / "archive.bin"
     arbitrary.write_bytes(b"\x01\x02\x03\x04")
 
+    compact = root / "compact.txt"
+    compact.write_text("09012345678 / +819012345678", encoding="utf-8")
+
+    phone_negative = root / "phone-negative.txt"
+    phone_negative.write_text(
+        "2026-09-23 / 〒901-1234 / JPY 12,345 / ORDER-123456 / "
+        "978-4-1234-5678-X / 192.0.2.10 / 090-123-456",
+        encoding="utf-8",
+    )
+
     records = audit_folder(root)
-    assert len(records) == 6
+    assert len(records) == 8
 
     duplicates = [r for r in records if r["path"] in {"a.txt", "b.txt"}]
     assert all(r["duplicate_group"] for r in duplicates)
@@ -46,6 +56,12 @@ with tempfile.TemporaryDirectory() as tmp:
     arbitrary_record = next(r for r in records if r["path"] == "archive.bin")
     assert arbitrary_record["sha256"]
     assert not arbitrary_record["email_candidate"]
+
+    compact_record = next(r for r in records if r["path"] == "compact.txt")
+    assert compact_record["phone_candidate"]
+
+    negative_record = next(r for r in records if r["path"] == "phone-negative.txt")
+    assert not negative_record["phone_candidate"], negative_record
 
     csv_path, json_path = export_reports(records, root / "audit")
     assert csv_path.exists() and json_path.exists()
