@@ -11,6 +11,8 @@
 - Duplicate-content grouping by SHA256
 - CSV + JSON audit report export
 
+Long numeric identifiers are warning-only candidates, not proof of personal data. UUID tails, timestamps, order numbers, ISBN-like values, account-like numbers, random digits, phone numbers, dates, and amounts can have the same shape; review these flags in context before taking action.
+
 No file content is uploaded by this implementation.
 
 ## Run

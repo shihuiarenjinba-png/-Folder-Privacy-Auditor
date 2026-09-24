@@ -162,7 +162,7 @@ def audit_folder(root: Path) -> list[dict]:
                 if rec["phone_candidate"]:
                     rec["notes"].append("phone candidate")
                 if rec["long_id_candidate"]:
-                    rec["notes"].append("long numeric identifier candidate")
+                    rec["notes"].append("long numeric identifier candidate (warning only)")
             except (OSError, UnicodeError) as exc:
                 rec["notes"].append(f"content scan failed (manual review required): {exc}")
         elif path.suffix.lower() in TEXTLIKE and size > 2 * 1024 * 1024:

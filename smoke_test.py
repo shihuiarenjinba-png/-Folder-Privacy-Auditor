@@ -43,10 +43,12 @@ with tempfile.TemporaryDirectory() as tmp:
     assert all(r["email_candidate"] for r in duplicates)
     assert all(r["phone_candidate"] for r in duplicates)
     assert all(r["long_id_candidate"] for r in duplicates)
+    assert all(any("warning only" in note for note in r["notes"]) for r in duplicates)
 
     xml_record = next(r for r in records if r["path"] == "設定.xml")
     assert xml_record["email_candidate"]
     assert xml_record["long_id_candidate"]
+    assert any("warning only" in note for note in xml_record["notes"])
 
     hidden_record = next(r for r in records if r["path"] == ".hidden.txt")
     assert hidden_record["hidden"]
