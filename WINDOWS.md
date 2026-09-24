@@ -5,7 +5,7 @@
 - Recursive local folder scan
 - File type, size and hidden-path inspection
 - Risky data-bearing extension flags
-- Email/phone candidate scan for small text-like files
+- Validated email/phone candidate scan for small text-like files. Email checks reject malformed syntax, URL user-info, and filename-like addresses whose first domain label contains no letter.
 - SHA256 hashing for files up to 50 MB
 - Duplicate-content grouping by SHA256
 - CSV + JSON audit report export

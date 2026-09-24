@@ -1,7 +1,7 @@
 from pathlib import Path
 import tempfile
 
-from windows_app import audit_folder, export_reports
+from windows_app import audit_folder, export_reports, find_email_candidates
 
 
 with tempfile.TemporaryDirectory() as tmp:
@@ -62,6 +62,22 @@ with tempfile.TemporaryDirectory() as tmp:
 
     negative_record = next(r for r in records if r["path"] == "phone-negative.txt")
     assert not negative_record["phone_candidate"], negative_record
+
+    valid_emails = [
+        "simple@example.com",
+        "first.last+tag@sub.example.co.jp",
+        "日本語周辺 user_123@example-domain.jp です",
+        '{"email":"json.user@example.net"}',
+        "mailto:owner@example.com",
+    ]
+    hard_email_negatives = [
+        "abc@", "@example.com", "a..b@example.com", "name@example",
+        "https://user@example.com/private", "filename=report@0.txt", "report@5.txt",
+        "const value = 'abc@';", "version=build@1.2.3",
+        "user@-invalid.example", "user@invalid-.example", "全角＠example.com",
+    ]
+    assert all(find_email_candidates(value) for value in valid_emails)
+    assert all(not find_email_candidates(value) for value in hard_email_negatives)
 
     csv_path, json_path = export_reports(records, root / "audit")
     assert csv_path.exists() and json_path.exists()
