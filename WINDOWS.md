@@ -6,6 +6,7 @@
 - File type, size and hidden-path inspection
 - Risky data-bearing extension flags
 - Validated email/phone candidate scan for small text-like files. Email checks reject malformed syntax, URL user-info, and filename-like addresses whose first domain label contains no letter.
+- Japanese international phone notation accepts `+81` without a domestic trunk `0`; invalid `+81-090-...` lookalikes are not reported as embedded domestic numbers.
 - SHA256 hashing for files up to 50 MB
 - Duplicate-content grouping by SHA256
 - CSV + JSON audit report export

@@ -30,7 +30,8 @@ with tempfile.TemporaryDirectory() as tmp:
     phone_negative = root / "phone-negative.txt"
     phone_negative.write_text(
         "2026-09-23 / 〒901-1234 / JPY 12,345 / ORDER-123456 / "
-        "978-4-1234-5678-X / 192.0.2.10 / 090-123-456",
+        "978-4-1234-5678-X / 192.0.2.10 / 090-123-456 / "
+        "+81-090-1234-5678 / +81 090 1234 5678",
         encoding="utf-8",
     )
 
