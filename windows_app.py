@@ -226,7 +226,7 @@ class App:
         self.listbox.pack(fill=BOTH, expand=True, padx=12, pady=12)
 
     def choose(self):
-        p = filedialog.askdirectory(title="Choose folder to audit")
+        p = filedialog.askdirectory(parent=self.root, title="Choose folder to audit")
         if p:
             self.folder = Path(p)
             self.listbox.delete(0, END)
@@ -260,6 +260,7 @@ class App:
         if not self.records:
             return
         p = filedialog.asksaveasfilename(
+            parent=self.root,
             title="Report base name",
             defaultextension=".csv",
             initialfile="folder_privacy_audit.csv",
