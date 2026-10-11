@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>はじめに — Folder Privacy Auditor</title>
+<style>body{font-family:"Segoe UI",Meiryo,sans-serif;max-width:900px;margin:32px auto;padding:0 22px;line-height:1.7;color:#172033}h1{color:#173f67}h2{margin-top:28px;border-bottom:2px solid #dce7f1}.box,.warn{padding:12px 16px;border-radius:8px}.box{background:#eef7ff}.warn{background:#fff5df;border-left:5px solid #d58a00}code{background:#edf2f6;padding:2px 5px}li{margin:.3em 0}footer{margin-top:30px;color:#667085}</style>
+</head>
+<body>
+<h1>Folder Privacy Auditor — はじめに</h1>
+<div class="box">指定フォルダーを外部送信せず検査し、個人情報候補、重複、隠しファイル等の確認一覧を作ります。</div>
+<h2>最初にやること</h2>
+<ol>
+<li>EXEを起動し「フォルダー選択」で対象を選びます。</li>
+<li>監査を実行します。</li>
+<li>対象件数、警告候補、読めなかったファイルを確認します。</li>
+<li>保存先を選びCSV／JSONレポートを保存します。</li>
+</ol>
+<h2>入力例</h2>
+<p>
+<code>C:\共有前資料</code>。監査は原則読み取りで、対象ファイルを変更しません。</p>
+<h2>出力されるもの</h2>
+<p>
+<code>folder_privacy_audit.csv</code>と<code>.json</code>。ファイル名、hash、候補、注意事項等を記録します。</p>
+<h2>制限</h2>
+<p>候補検出であり安全性保証ではありません。長い数値IDはwarning-onlyです。暗号化・未知形式・binaryは手動確認が必要です。</p>
+<h2>よくあるエラー</h2>
+<p>アクセス権、長すぎるパス、読み取り不可ファイル、書き込み不可の保存先を確認してください。</p>
+<h2>対応環境・既知の制限</h2>
+<p>Windows 11 64-bit候補です。Windows 10、125%／150%表示、最終配布EXEのHuman Acceptanceは未検証です。EXEは未署名です。</p>
+<h2>問い合わせ</h2>
+<p>BOOTHの「ショップへのお問い合わせ」が一次窓口です。利用できない場合のみ <a href="mailto:dmzmr37049@yahoo.co.jp">dmzmr37049@yahoo.co.jp</a> を利用してください。購入者限定サポートでは注文確認をお願いする場合があります。</p>
+<footer>Windows 11 64-bit候補／Windows 10・125%・150%未検証／未署名EXE／Sales release: NO</footer>
+</body>
+</html>
+
