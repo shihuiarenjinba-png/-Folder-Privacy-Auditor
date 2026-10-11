@@ -1,15 +1,16 @@
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $Root
-if (-not (Get-Command py -ErrorAction SilentlyContinue)) { throw "Python launcher 'py' is required." }
+. (Join-Path $Root "build_python.ps1")
+$BasePython = Resolve-BuildPython
 $Venv = Join-Path $Root ".venv-build"
 if (Test-Path $Venv) { Remove-Item -Recurse -Force $Venv }
-py -3 -m venv $Venv
+& $BasePython -m venv $Venv
 $Python = Join-Path $Venv "Scripts\python.exe"
-& $Python -m pip install --upgrade pip
-if ($LASTEXITCODE -ne 0) { throw "pip upgrade failed." }
-& $Python -m pip install pyinstaller
-if ($LASTEXITCODE -ne 0) { throw "dependency installation failed." }
+$LockFile = Join-Path $Root "requirements-windows.lock.txt"
+if (-not (Test-Path -LiteralPath $LockFile -PathType Leaf)) { throw "Dependency lock is missing: $LockFile" }
+& $Python -m pip install --requirement $LockFile
+if ($LASTEXITCODE -ne 0) { throw "locked dependency installation failed." }
 & $Python .\bilingual_smoke_test.py
 if ($LASTEXITCODE -ne 0) { throw "bilingual_smoke_test.py failed." }
 & $Python .\language_standard_smoke_test.py
