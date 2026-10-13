@@ -25,3 +25,29 @@ try {
 } finally {
     if (-not $proc.HasExited) { & taskkill.exe /F /T /PID $proc.Id | Out-Null }
 }
+
+# Exercise the compiled GUI through actual programmatic button invocations and
+# verify that output bytes exist, then exercise a safe error case.
+$e2eProof = Join-Path $manifestFile.DirectoryName "gui_e2e_result.json"
+if (Test-Path -LiteralPath $e2eProof) { throw "E2E proof already exists" }
+$e2eProc = Start-Process -FilePath $exe -ArgumentList @("--e2e-test", $e2eProof) -PassThru
+try {
+    if (-not $e2eProc.WaitForExit(60000)) {
+        & taskkill.exe /F /T /PID $e2eProc.Id | Out-Null
+        throw "GUI end-to-end fixture timed out"
+    }
+    if ($e2eProc.ExitCode -ne 0) { throw "GUI end-to-end fixture exit $($e2eProc.ExitCode)" }
+    if (-not (Test-Path -LiteralPath $e2eProof)) { throw "E2E proof not created" }
+    $e2eResult = Get-Content -LiteralPath $e2eProof -Raw | ConvertFrom-Json
+    if ($e2eResult.status -ne "GUI_E2E_OK" -or
+        $e2eResult.actual_output_verified -ne $true -or
+        $e2eResult.input_unchanged -ne $true -or
+        $e2eResult.negative_case_verified -ne $true) {
+        throw "GUI end-to-end proof invalid"
+    }
+    $manifest | Add-Member -NotePropertyName automated_gui_e2e_pass -NotePropertyValue $true -Force
+    $manifest | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $manifestFile.FullName -Encoding UTF8
+    Write-Host "GUI_E2E_OK: $($e2eResult.scenario)"
+} finally {
+    if (-not $e2eProc.HasExited) { & taskkill.exe /F /T /PID $e2eProc.Id | Out-Null }
+}

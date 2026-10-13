@@ -30,7 +30,8 @@ jobs:
             "- SHA256: $($result.sha256)",
             "- Automated tests and unsigned EXE build: succeeded",
             "- GUI process startup: $($result.gui_process_smoke_tested) (noninteractive)",
-            "- Interactive GUI actions: NOT TESTED",
+            "- Automated GUI actions/output and negative test: $($result.automated_gui_e2e_pass)",
+            "- Human-driven GUI/visual/accessibility: NOT TESTED",
             "- Signed: false; sales release: false",
             "- Artifact upload: disabled because repository storage quota is exceeded",
             "- Binaries are ephemeral in GitHub Actions and cannot be downloaded from this run"
