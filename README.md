@@ -20,3 +20,8 @@
 
 Windows検証ビルド: `powershell -ExecutionPolicy Bypass -File .\\build-windows-validation.ps1`。
 GitHub Actionsは手動実行のみ。Windowsでの完成検証・署名・販売審査は未完了。
+
+
+## Windows QA evidence and manual acceptance (2026-10-13)
+
+See [Windows QA Runbook](docs/WINDOWS_QA_RUNBOOK.md) for unsigned build verification, manual checks and local evidence. **This is not a sales release.**

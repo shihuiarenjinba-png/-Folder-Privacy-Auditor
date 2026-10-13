@@ -18,6 +18,9 @@ jobs:
       - name: Noninteractive Windows GUI startup smoke
         shell: pwsh
         run: .\smoke-windows-validation.ps1
+      - name: Validate package SHA256, Authenticode and QA evidence
+        shell: pwsh
+        run: .\qa\windows-acceptance.ps1 -Mode CI
       - name: Record unsigned validation manifest (artifact quota workaround)
         shell: pwsh
         run: |
@@ -32,6 +35,7 @@ jobs:
             "- GUI process startup: $($result.gui_process_smoke_tested) (noninteractive)",
             "- Automated GUI actions/output and negative test: $($result.automated_gui_e2e_pass)",
             "- Human-driven GUI/visual/accessibility: NOT TESTED",
+            "- Distribution SHA256 inventory and Authenticode evidence: collected (NOT release clearance)",
             "- Signed: false; sales release: false",
             "- Artifact upload: disabled because repository storage quota is exceeded",
             "- Binaries are ephemeral in GitHub Actions and cannot be downloaded from this run"
