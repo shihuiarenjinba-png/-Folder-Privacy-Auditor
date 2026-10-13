@@ -13,7 +13,7 @@ try {
     CheckCode
     P @("-m","pip","install","--upgrade","pip")
     P @("-m","pip","install","pyinstaller>=6.10,<7")
-    P @("-m","unittest","discover","-s","tests","-p","test_storage_cause_analyzer.py","-v")
+    P @("-m","unittest","discover","-s","tests","-p","test_*.py","-v")
     P @("-m","PyInstaller","--clean","--noconfirm","--onedir","--windowed",
         "--name","StorageCauseAnalyzer","--distpath",$out,
         "--workpath",(Join-Path $venv "pyinstaller-work"),
