@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.venv/
+# Local, unsigned validation builds; never commit packages
+/dist-validation/
+/.validation-build/
+/.validation-spec/
+/build/
+/dist/
+*.spec
+.pytest_cache/
