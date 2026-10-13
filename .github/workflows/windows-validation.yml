@@ -24,6 +24,9 @@ jobs:
       - name: Build and verify unsigned TEST-IDENTITY MSIX prototype
         shell: pwsh
         run: .\qa\build-msix-preflight.ps1 -TestIdentity
+      - name: Test signed MSIX install update and cleanup on ephemeral runner
+        shell: pwsh
+        run: .\qa\msix-install-lifecycle-ci.ps1 -EphemeralRunner
       - name: Record unsigned validation manifest (artifact quota workaround)
         shell: pwsh
         run: |
