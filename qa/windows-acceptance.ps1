@@ -104,7 +104,7 @@ if ($Interactive) {
     }
 }
 $allManualPass = $Interactive -and (@($cases | Where-Object {$_.result -ne "PASS"}).Count -eq 0)
-$evidenceDir = Join-Path $mfile.DirectoryName "qa-evidence"
+$evidenceDir = Join-Path $mfile.DirectoryName ("qa-evidence-" + [Guid]::NewGuid().ToString("N"))
 if (-not (Test-Path -LiteralPath $evidenceDir)) {
     New-Item -ItemType Directory -Path $evidenceDir -ErrorAction Stop | Out-Null
 }
