@@ -8,7 +8,8 @@ not launching an unpackaged PyInstaller EXE directly.
 param(
     [Parameter(Mandatory=$true)][string]$PackageFamilyName,
     [Parameter(Mandatory=$true)][string]$MarkerPath,
-    [switch]$EphemeralRunner
+    [switch]$EphemeralRunner,
+    [ValidateSet("","write","verify")][string]$PreferenceMode = ""
 )
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
@@ -29,7 +30,7 @@ $root = [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA ("Packages\" + $Pack
 $marker = [IO.Path]::GetFullPath($MarkerPath)
 if (-not $marker.StartsWith($root + [IO.Path]::DirectorySeparatorChar,
                            [StringComparison]::OrdinalIgnoreCase) -or
-    $marker -notmatch '\\qa_msix_(before|after)_upgrade\.json$') {
+    $marker -notmatch '\\(qa_msix_(before|after)_upgrade|qa_prefs_(write|verify))\.json$') {
     throw "Marker path must be a QA-only file inside the installed app LocalState"
 }
 if (Test-Path -LiteralPath $marker) { throw "Marker already exists; refusing overwrite" }
@@ -73,7 +74,7 @@ namespace QaShell {
 Add-Type -TypeDefinition $interop -ErrorAction Stop
 $manager = [QaShell.IApplicationActivationManager](New-Object QaShell.ApplicationActivationManager)
 $pidOut = [uint32]0
-$argsText = '--smoke-test --smoke-output "' + $marker + '"'
+$argsText = if ($PreferenceMode) { '--preferences-ci ' + $PreferenceMode + ' "' + $marker + '"' } else { '--smoke-test --smoke-output "' + $marker + '"' }
 # NoErrorUI is a testing option, not a bypass of app trust or security.
 $hr = $manager.ActivateApplication($aumid, $argsText, [uint32]2, [ref]$pidOut)
 if ($hr -ne 0 -or $pidOut -eq 0) {
@@ -87,7 +88,12 @@ if (-not (Test-Path -LiteralPath $marker)) {
     throw "Packaged GUI process did not write smoke marker in LocalState"
 }
 $proof = Get-Content -LiteralPath $marker -Raw -Encoding UTF8 | ConvertFrom-Json
-if ($proof.status -ne "GUI_PROCESS_SMOKE_OK" -or -not $proof.title) {
+if ($PreferenceMode) {
+    if ($proof.status -ne "GUI_REAL_PREFERENCES_OK" -or $proof.mode -ne $PreferenceMode -or
+        $proof.schema_version -ne 1 -or -not $proof.preferences_sha256) {
+        throw "Packaged app did not validate real user preferences"
+    }
+} elseif ($proof.status -ne "GUI_PROCESS_SMOKE_OK" -or -not $proof.title) {
     throw "Packaged GUI marker did not confirm widget initialization"
 }
 $verify = @(Get-AppxPackage -Name $pkg.Name -ErrorAction Stop)
