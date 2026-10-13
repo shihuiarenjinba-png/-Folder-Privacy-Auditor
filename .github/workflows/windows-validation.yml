@@ -1,6 +1,9 @@
 name: Windows Validation - Storage Cause
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - validation/msix-preflight-20261013
 permissions:
   contents: read
 jobs:
@@ -21,6 +24,9 @@ jobs:
       - name: Validate package SHA256, Authenticode and QA evidence
         shell: pwsh
         run: .\qa\windows-acceptance.ps1 -Mode CI
+      - name: Build and verify unsigned TEST-IDENTITY MSIX prototype
+        shell: pwsh
+        run: .\qa\build-msix-preflight.ps1 -TestIdentity
       - name: Record unsigned validation manifest (artifact quota workaround)
         shell: pwsh
         run: |
@@ -36,6 +42,8 @@ jobs:
             "- Automated GUI actions/output and negative test: $($result.automated_gui_e2e_pass)",
             "- Human-driven GUI/visual/accessibility: NOT TESTED",
             "- Distribution SHA256 inventory and Authenticode evidence: collected (NOT release clearance)",
+            "- QA MSIX pack/unpack hash: PASS if preceding step succeeded (synthetic identity only)",
+            "- MSIX signed/installed/Store certified: NOT TESTED",
             "- Signed: false; sales release: false",
             "- Artifact upload: disabled because repository storage quota is exceeded",
             "- Binaries are ephemeral in GitHub Actions and cannot be downloaded from this run"
