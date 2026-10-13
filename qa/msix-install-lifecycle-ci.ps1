@@ -52,6 +52,10 @@ $certRemoved = $false
 $problem = ""
 $cleanupIssues = @()
 $family = ""
+$packagedLaunchBefore = $false
+$packagedLaunchAfter = $false
+$qaStatePersisted = $false
+$initialProofHash = ""
 try {
     $params = @{
         Type = "Custom"
@@ -88,6 +92,13 @@ try {
     $family = [string]$installed[0].PackageFamilyName
     $installedOld = $true
     Write-Host ("QA_MSIX_INSTALLED version={0} family={1}" -f $installed[0].Version,$family)
+    # Run through Windows' registered application activation contract, not directly from dist.
+    $stateFolder = Join-Path $env:LOCALAPPDATA ("Packages\" + $family + "\LocalState")
+    $proofBefore = Join-Path $stateFolder "qa_msix_before_upgrade.json"
+    & (Join-Path $PSScriptRoot "msix-packaged-launch-ci.ps1") -PackageFamilyName $family -MarkerPath $proofBefore -EphemeralRunner
+    if (-not (Test-Path -LiteralPath $proofBefore)) { throw "App-generated LocalState marker missing before upgrade" }
+    $initialProofHash = (Get-FileHash -LiteralPath $proofBefore -Algorithm SHA256).Hash
+    $packagedLaunchBefore = $true
     & (Join-Path $PSScriptRoot "build-msix-preflight.ps1") -TestIdentity -Version "1.0.1.0" -ManifestPath $builds[0].FullName
     if ($LASTEXITCODE -ne 0) { throw "MSIX upgrade package creation failed" }
     $newReports = @(Get-ChildItem -LiteralPath $builds[0].DirectoryName -File -Recurse -Filter msix-preflight-report.json |
@@ -106,6 +117,16 @@ try {
         [string]$upgraded[0].PackageFamilyName -ne $family) { throw "In-place upgrade validation failed" }
     $updated = $true
     Write-Host ("QA_MSIX_UPDATED version={0} family_stable=true" -f $upgraded[0].Version)
+    if (-not (Test-Path -LiteralPath $proofBefore) -or
+        (Get-FileHash -LiteralPath $proofBefore -Algorithm SHA256).Hash -ne $initialProofHash) {
+        throw "App-generated LocalState test data missing/modified after update"
+    }
+    $qaStatePersisted = $true
+    $proofAfter = Join-Path $stateFolder "qa_msix_after_upgrade.json"
+    & (Join-Path $PSScriptRoot "msix-packaged-launch-ci.ps1") -PackageFamilyName $family -MarkerPath $proofAfter -EphemeralRunner
+    if (-not (Test-Path -LiteralPath $proofAfter)) { throw "Packaged GUI marker missing after upgrade" }
+    $packagedLaunchAfter = $true
+    Write-Host "QA_MSIX_LOCALSTATE_PRESERVED sha256_match=true release=false"
 } catch {
     $problem = $_.Exception.Message
     Write-Warning ("QA_MSIX_LIFECYCLE_ERROR: " + $problem)
@@ -145,6 +166,7 @@ try {
     }
 }
 $passed = $signedOld -and $installedOld -and $signedNew -and $updated -and
+    $packagedLaunchBefore -and $packagedLaunchAfter -and $qaStatePersisted -and
     $removed -and $certRemoved -and $cleanupIssues.Count -eq 0
 $report = [ordered]@{
     schema = "msix_ephemeral_lifecycle_v1"
@@ -159,7 +181,11 @@ $report = [ordered]@{
     deleted_test_certificate = $certRemoved
     error = $problem
     cleanup_issues = @($cleanupIssues)
-    packaged_gui_launch = "NOT_TESTED"
+    packaged_gui_launch_before_update = $packagedLaunchBefore
+    packaged_gui_launch_after_update = $packagedLaunchAfter
+    qa_generated_localstate_persisted = $qaStatePersisted
+    actual_product_config_migration = "NOT_TESTED"
+    user_interactive_gui = "NOT_TESTED"
     user_interaction = "NOT_TESTED"
     original_store_identity_used = $false
     release_approved = $false
@@ -168,4 +194,4 @@ $folder = Join-Path $builds[0].DirectoryName ("msix-lifecycle-" + [guid]::NewGui
 New-Item -ItemType Directory -Path $folder | Out-Null
 $report | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $folder "lifecycle-report.json") -Encoding UTF8
 if (-not $passed) { throw "MSIX lifecycle failed or cleanup incomplete" }
-Write-Host ("MSIX_INSTALL_UPDATE_REMOVE_PASS product={0} release=false" -f $product)
+Write-Host ("MSIX_PACKAGED_GUI_AND_UPDATE_STATE_PASS product={0} release=false" -f $product)
