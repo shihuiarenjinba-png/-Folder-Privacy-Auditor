@@ -1,6 +1,9 @@
 name: Windows Validation - Storage Cause
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - validation/windows-20261013
 permissions:
   contents: read
 jobs:
