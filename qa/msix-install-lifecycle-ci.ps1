@@ -55,6 +55,9 @@ $family = ""
 $packagedLaunchBefore = $false
 $packagedLaunchAfter = $false
 $qaStatePersisted = $false
+$realPreferencesSaved = $false
+$realPreferencesRestored = $false
+$realPreferenceHash = ""
 $initialProofHash = ""
 try {
     $params = @{
@@ -99,6 +102,12 @@ try {
     if (-not (Test-Path -LiteralPath $proofBefore)) { throw "App-generated LocalState marker missing before upgrade" }
     $initialProofHash = (Get-FileHash -LiteralPath $proofBefore -Algorithm SHA256).Hash
     $packagedLaunchBefore = $true
+    $prefWrite = Join-Path $stateFolder "qa_prefs_write.json"
+    & (Join-Path $PSScriptRoot "msix-packaged-launch-ci.ps1") -PackageFamilyName $family -MarkerPath $prefWrite -EphemeralRunner -PreferenceMode write
+    $actualPreferences = Join-Path $stateFolder (Join-Path $product "preferences.json")
+    if (-not (Test-Path -LiteralPath $actualPreferences)) { throw "Real GUI preferences file not created" }
+    $realPreferenceHash = (Get-FileHash -LiteralPath $actualPreferences -Algorithm SHA256).Hash
+    $realPreferencesSaved = $true
     & (Join-Path $PSScriptRoot "build-msix-preflight.ps1") -TestIdentity -Version "1.0.1.0" -ManifestPath $builds[0].FullName
     if ($LASTEXITCODE -ne 0) { throw "MSIX upgrade package creation failed" }
     $newReports = @(Get-ChildItem -LiteralPath $builds[0].DirectoryName -File -Recurse -Filter msix-preflight-report.json |
@@ -126,6 +135,16 @@ try {
     & (Join-Path $PSScriptRoot "msix-packaged-launch-ci.ps1") -PackageFamilyName $family -MarkerPath $proofAfter -EphemeralRunner
     if (-not (Test-Path -LiteralPath $proofAfter)) { throw "Packaged GUI marker missing after upgrade" }
     $packagedLaunchAfter = $true
+    if (-not (Test-Path -LiteralPath $actualPreferences) -or
+        (Get-FileHash -LiteralPath $actualPreferences -Algorithm SHA256).Hash -ne $realPreferenceHash) {
+        throw "Saved user preference JSON was lost or changed during MSIX update"
+    }
+    $prefVerify = Join-Path $stateFolder "qa_prefs_verify.json"
+    & (Join-Path $PSScriptRoot "msix-packaged-launch-ci.ps1") -PackageFamilyName $family -MarkerPath $prefVerify -EphemeralRunner -PreferenceMode verify
+    $verifyState = Get-Content -LiteralPath $prefVerify -Raw -Encoding UTF8 | ConvertFrom-Json
+    if ($verifyState.preferences_sha256 -ne $realPreferenceHash) { throw "GUI restored unexpected preference bytes" }
+    $realPreferencesRestored = $true
+    Write-Host "QA_MSIX_REAL_PREFERENCES_RESTORED sha256_match=true release=false"
     Write-Host "QA_MSIX_LOCALSTATE_PRESERVED sha256_match=true release=false"
 } catch {
     $problem = $_.Exception.Message
@@ -167,6 +186,7 @@ try {
 }
 $passed = $signedOld -and $installedOld -and $signedNew -and $updated -and
     $packagedLaunchBefore -and $packagedLaunchAfter -and $qaStatePersisted -and
+    $realPreferencesSaved -and $realPreferencesRestored -and
     $removed -and $certRemoved -and $cleanupIssues.Count -eq 0
 $report = [ordered]@{
     schema = "msix_ephemeral_lifecycle_v1"
@@ -184,6 +204,9 @@ $report = [ordered]@{
     packaged_gui_launch_before_update = $packagedLaunchBefore
     packaged_gui_launch_after_update = $packagedLaunchAfter
     qa_generated_localstate_persisted = $qaStatePersisted
+    real_gui_preferences_saved = $realPreferencesSaved
+    real_gui_preferences_restored = $realPreferencesRestored
+    preferences_schema_version = 1
     actual_product_config_migration = "NOT_TESTED"
     user_interactive_gui = "NOT_TESTED"
     user_interaction = "NOT_TESTED"
@@ -194,4 +217,4 @@ $folder = Join-Path $builds[0].DirectoryName ("msix-lifecycle-" + [guid]::NewGui
 New-Item -ItemType Directory -Path $folder | Out-Null
 $report | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $folder "lifecycle-report.json") -Encoding UTF8
 if (-not $passed) { throw "MSIX lifecycle failed or cleanup incomplete" }
-Write-Host ("MSIX_PACKAGED_GUI_AND_UPDATE_STATE_PASS product={0} release=false" -f $product)
+Write-Host ("MSIX_REAL_GUI_PREFERENCES_SURVIVE_UPDATE_PASS product={0} release=false" -f $product)

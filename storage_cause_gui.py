@@ -9,6 +9,7 @@ from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
 from storage_cause_analyzer import analyze
+from ui_preferences import load_preferences, save_preferences
 
 
 class StorageCauseGUI(tk.Tk):
@@ -23,6 +24,10 @@ class StorageCauseGUI(tk.Tk):
         self.status = tk.StringVar(value="スキャン対象を選択。ファイルを移動・削除することはありません。")
         self.messages = queue.Queue()
         self.busy = False
+        try:
+            self.reports.set(load_preferences("StorageCauseAnalyzer", ("reports",)).get("reports", self.reports.get()))
+        except (OSError, ValueError) as exc:
+            self.status.set("保存設定を読み込めませんでした: " + str(exc))
         parent = ttk.Frame(self, padding=18)
         parent.pack(fill="both", expand=True)
         parent.columnconfigure(1, weight=1)
@@ -41,7 +46,16 @@ class StorageCauseGUI(tk.Tk):
         self.report.grid(row=6, column=0, columnspan=3, sticky="nsew")
         ttk.Label(parent, textvariable=self.status, wraplength=830).grid(
             row=7, column=0, columnspan=3, sticky="w", pady=8)
+        ttk.Button(parent, text="設定を保存", command=self.save_user_preferences).grid(row=8, column=0, columnspan=3, sticky="w", pady=5)
         self.after(150, self.poll)
+
+    def save_user_preferences(self) -> None:
+        try:
+            save_preferences("StorageCauseAnalyzer", {"reports": self.reports.get()}, ("reports",))
+            self.status.set("レポート保存先の設定を保存しました。")
+        except (OSError, ValueError) as exc:
+            self.status.set(f"設定保存失敗: {exc}")
+            messagebox.showerror("設定保存失敗", str(exc))
 
     def _file(self, parent, row, label, var, kind):
         ttk.Label(parent, text=label).grid(row=row, column=0, sticky="w", pady=5)
@@ -140,5 +154,8 @@ if __name__ == "__main__":
     elif "--e2e-test" in sys.argv:
         from gui_e2e_harness import run
         run(StorageCauseGUI)
+    elif "--preferences-ci" in sys.argv:
+        from preferences_ci import run
+        run(StorageCauseGUI, "StorageCauseAnalyzer", {"reports":"C:\\QA\\容量分析レポート"})
     else:
         StorageCauseGUI().mainloop()
