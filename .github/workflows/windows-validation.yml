@@ -15,6 +15,9 @@ jobs:
       - name: Run tests and unsigned Windows validation packaging
         shell: pwsh
         run: .\build-windows-validation.ps1
+      - name: Noninteractive Windows GUI startup smoke
+        shell: pwsh
+        run: .\smoke-windows-validation.ps1
       - name: Record unsigned validation manifest (artifact quota workaround)
         shell: pwsh
         run: |
@@ -26,7 +29,8 @@ jobs:
             "- Product: $($result.product)",
             "- SHA256: $($result.sha256)",
             "- Automated tests and unsigned EXE build: succeeded",
-            "- GUI launch: NOT TESTED",
+            "- GUI process startup: $($result.gui_process_smoke_tested) (noninteractive)",
+            "- Interactive GUI actions: NOT TESTED",
             "- Signed: false; sales release: false",
             "- Artifact upload: disabled because repository storage quota is exceeded",
             "- Binaries are ephemeral in GitHub Actions and cannot be downloaded from this run"
