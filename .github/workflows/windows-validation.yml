@@ -1,0 +1,22 @@
+name: Windows Validation - Storage Cause
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows-validation:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run tests and unsigned Windows validation packaging
+        shell: pwsh
+        run: .\build-windows-validation.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FolderPrivacyAuditor-validation-unsigned
+          path: dist-validation/
+          retention-days: 3
