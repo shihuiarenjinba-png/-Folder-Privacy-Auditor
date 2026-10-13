@@ -1,6 +1,9 @@
 name: Windows Validation - Storage Cause
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - validation/gui-e2e-20261013
 permissions:
   contents: read
 jobs:
@@ -30,7 +33,8 @@ jobs:
             "- SHA256: $($result.sha256)",
             "- Automated tests and unsigned EXE build: succeeded",
             "- GUI process startup: $($result.gui_process_smoke_tested) (noninteractive)",
-            "- Interactive GUI actions: NOT TESTED",
+            "- Automated GUI widget selection, output, negative cases: $($result.automated_gui_e2e_pass)",
+            "- Human GUI/manual rendering/accessibility: NOT TESTED",
             "- Signed: false; sales release: false",
             "- Artifact upload: disabled because repository storage quota is exceeded",
             "- Binaries are ephemeral in GitHub Actions and cannot be downloaded from this run"
