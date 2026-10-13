@@ -1,6 +1,9 @@
 name: Windows Validation - Storage Cause
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - validation/msix-launch-persistence-20261014
 permissions:
   contents: read
 jobs:
@@ -43,7 +46,8 @@ jobs:
             "- Human-driven GUI/visual/accessibility: NOT TESTED",
             "- Distribution SHA256 inventory and Authenticode evidence: collected (NOT release clearance)",
             "- QA MSIX pack/unpack hash: PASS if preceding step succeeded (synthetic identity only)",
-            "- MSIX signed/installed/Store certified: NOT TESTED",
+            "- Installed MSIX app GUI activation and LocalState preservation: verified by CI when successful",
+            "- Store certification and actual settings migration: NOT TESTED",
             "- Signed: false; sales release: false",
             "- Artifact upload: disabled because repository storage quota is exceeded",
             "- Binaries are ephemeral in GitHub Actions and cannot be downloaded from this run"
