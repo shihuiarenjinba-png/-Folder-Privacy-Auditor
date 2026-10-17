@@ -1,0 +1,24 @@
+name: Folder privacy coverage regression
+on:
+  push:
+    branches: [improve/read-only-coverage-20261018]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  regression:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Syntax
+        run: python -m compileall -q windows_app.py i18n.py smoke_test.py tests
+      - name: Original regression
+        run: python smoke_test.py
+      - name: Read-only report and traversal regression
+        run: python -m unittest discover -s tests -p "test_*.py" -v
+      - name: Japanese and English UI smoke
+        run: python bilingual_smoke_test.py
