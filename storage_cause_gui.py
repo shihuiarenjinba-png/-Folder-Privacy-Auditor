@@ -36,9 +36,17 @@ class StorageCauseGUI(tk.Tk):
             row=0, column=0, columnspan=3, sticky="w", pady=(0, 15))
         self._file(parent, 1, "調査フォルダ", self.scan, "dir")
         self._file(parent, 2, "レポート保存先", self.reports, "dir")
-        self._file(parent, 3, "前回のレポート（任意）", self.baseline, "json")
+        self.advanced_open = False
+        self.advanced_button = ttk.Button(parent, text="詳細：比較するレポートを手動指定",
+                                          command=self.toggle_advanced)
+        self.advanced_button.grid(row=3, column=0, columnspan=3, sticky="w", pady=5)
+        self.advanced_frame = ttk.Frame(parent)
+        self.advanced_frame.columnconfigure(1, weight=1)
+        self._file(self.advanced_frame, 0, "前回レポート（任意）", self.baseline, "json")
+        ttk.Label(parent, text="2回目以降は同じ調査フォルダの前回レポートと自動比較します。",
+                  wraplength=820).grid(row=4, column=0, columnspan=3, sticky="w")
         ttk.Label(parent, text="Python仮想環境、node_modules、ビルド成果物、キャッシュ等を分類。"
-                  "ディスク上の実使用容量ではなく論理的なファイルサイズを集計します。",
+                  "容量は論理ファイルサイズです。実ディスク占有量ではありません。",
                   wraplength=820).grid(row=4, column=0, columnspan=3, sticky="w", pady=(10, 10))
         self.run_button = ttk.Button(parent, text="スキャン開始（読み取りのみ）", command=self.start)
         self.run_button.grid(row=5, column=0, columnspan=3, sticky="w", pady=(0, 12))
@@ -48,6 +56,15 @@ class StorageCauseGUI(tk.Tk):
             row=7, column=0, columnspan=3, sticky="w", pady=8)
         ttk.Button(parent, text="設定を保存", command=self.save_user_preferences).grid(row=8, column=0, columnspan=3, sticky="w", pady=5)
         self.after(150, self.poll)
+
+    def toggle_advanced(self) -> None:
+        self.advanced_open = not self.advanced_open
+        if self.advanced_open:
+            self.advanced_frame.grid(row=3, column=1, columnspan=2, sticky="ew", pady=5)
+            self.advanced_button.configure(text="詳細を閉じる")
+        else:
+            self.advanced_frame.grid_remove()
+            self.advanced_button.configure(text="詳細：比較するレポートを手動指定")
 
     def save_user_preferences(self) -> None:
         try:
@@ -81,7 +98,7 @@ class StorageCauseGUI(tk.Tk):
         baseline = self.baseline.get().strip() or None
         def worker():
             try:
-                path = analyze(folder, output, baseline)
+                path = analyze(folder, output, baseline, auto_history=True)
                 data = json.loads((path / "storage_report.json").read_text(encoding="utf-8"))
                 self.messages.put((True, path, data))
             except Exception as exc:
@@ -98,8 +115,15 @@ class StorageCauseGUI(tk.Tk):
                     self.status.set(f"失敗: {data}")
                     messagebox.showerror("分析失敗", data)
                     continue
+                delta = data.get("growth_total_logical_bytes")
+                comparison = (
+                    f"前回との差: {delta / (1024**2):+.1f} MiB"
+                    if isinstance(delta, int)
+                    else "比較: 前回の有効なレポートなし（初回または保存場所変更）"
+                )
                 result = [
                     f"状態: {data['status']}",
+                    comparison,
                     f"対象ファイル: {data['scanned_files']:,}",
                     f"論理サイズ合計: {data['total_logical_bytes'] / (1024**3):.3f} GiB",
                     f"スキップした再解析ポイント: {data['skipped_reparse_entries']}",
@@ -110,6 +134,8 @@ class StorageCauseGUI(tk.Tk):
                 result += [f"  {key:<30} {val / (1024**3):.3f}"
                            for key, val in sorted(data["category_bytes"].items(), key=lambda x: -x[1])]
                 if "growth_by_category" in data:
+                    if "growth_warning" in data:
+                        result += ["", "警告: 一部の検査が不完全なため、前回比較は参考値です。"]
                     result += ["", "前回との差分（GiB）:"]
                     result += [f"  {k:<30} {v / (1024**3):+.3f}"
                                for k, v in sorted(data["growth_by_category"].items(), key=lambda x: -x[1])]
