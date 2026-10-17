@@ -39,7 +39,7 @@ class StorageCauseGUI(tk.Tk):
         self.advanced_open = False
         self.advanced_button = ttk.Button(parent, text="詳細：比較するレポートを手動指定",
                                           command=self.toggle_advanced)
-        self.advanced_button.grid(row=3, column=0, columnspan=3, sticky="w", pady=5)
+        self.advanced_button.grid(row=3, column=0, sticky="w", pady=5)
         self.advanced_frame = ttk.Frame(parent)
         self.advanced_frame.columnconfigure(1, weight=1)
         self._file(self.advanced_frame, 0, "前回レポート（任意）", self.baseline, "json")
