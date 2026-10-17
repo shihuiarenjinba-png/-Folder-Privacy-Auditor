@@ -64,7 +64,7 @@ def analyze(root_dir: str | Path, reports_dir: str | Path,
     automatic_baseline = False
     if auto_history and baseline_file is None:
         from storage_history import find_previous_snapshot
-        baseline_file = find_previous_snapshot(reports, root)
+        baseline_file = find_previous_snapshot(reports, root, format_version=VERSION, is_reparse=reparse)
         automatic_baseline = baseline_file is not None
     category_bytes: dict[str, int] = defaultdict(int)
     category_files: dict[str, int] = defaultdict(int)
