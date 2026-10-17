@@ -70,8 +70,8 @@ def run(GUI):
                 assert first["category_bytes"]["python_environment"]==40
                 assert first["status"]=="COMPLETE_FOR_REGULAR_FILES"
                 (nm/"lib.js").write_bytes(b"x"*160)
-                with patch.object(filedialog,"askopenfilename",return_value=str(files[0])):
-                    browse[2].invoke()
+                # No manual baseline selected: second scan must compare automatically.
+                assert not app.baseline.get()
                 start[0].invoke()
                 await_idle(app)
                 second_files=[p for p in reports.glob("storage_cause_*/storage_report.json") if p not in files]
@@ -79,9 +79,16 @@ def run(GUI):
                 second=json.loads(second_files[0].read_text(encoding="utf-8"))
                 assert second["growth_total_logical_bytes"]==50
                 assert second["growth_by_category"]["node_dependencies"]==50
+                assert second["comparison_source"]=="automatic_previous"
                 assert (venv/"lib.dat").read_bytes()==b"y"*40
                 assert (nm/"lib.js").read_bytes()==b"x"*160
                 assert not errors, errors
+                # Negative UI path: absent scan root must not create a new report.
+                app.scan.set(str(root/"missing-source"))
+                start[0].invoke()
+                await_idle(app)
+                assert errors, "Missing scan root must produce a GUI error"
+                assert len(list(reports.glob("storage_cause_*/storage_report.json")))==2
             with proof.open("x",encoding="utf-8") as output:
                 json.dump({"status":"GUI_E2E_OK","scenario":"browse -> scan -> report -> baseline growth",
                            "actual_output_verified":True,"input_unchanged":True,
