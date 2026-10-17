@@ -4,11 +4,13 @@ import csv
 import hashlib
 import json
 import os
+import queue
+import threading
 import re
 import stat
 from collections import defaultdict
 from pathlib import Path
-from tkinter import BOTH, END, LEFT, Button, Frame, Label, Listbox, Tk, filedialog, messagebox
+from tkinter import BOTH, END, LEFT, Button, Frame, Label, Listbox, StringVar, Tk, filedialog, messagebox
 
 EMAIL_RE = re.compile(
     r"(?<![A-Z0-9._%+-])"
@@ -316,6 +318,9 @@ class App:
         self.root.geometry("960x650")
         self.folder: Path | None = None
         self.records: list[dict] = []
+        self.busy = False
+        self.results_queue = queue.Queue()
+        self.status_text = StringVar(value="Choose a folder. Audit does not modify input files.")
 
         head = Frame(root, padx=12, pady=12)
         head.pack(fill="x")
@@ -324,49 +329,93 @@ class App:
 
         controls = Frame(root, padx=12)
         controls.pack(fill="x")
-        Button(controls, text="Choose folder", width=16, command=self.choose).pack(side=LEFT)
-        Button(controls, text="Run audit", width=16, command=self.audit).pack(side=LEFT, padx=8)
-        Button(controls, text="Export CSV + JSON", width=18, command=self.export).pack(side=LEFT)
+        self.choose_button = Button(controls, text="Choose folder", width=16, command=self.choose)
+        self.choose_button.pack(side=LEFT)
+        self.audit_button = Button(controls, text="Run audit", width=16, command=self.audit)
+        self.audit_button.pack(side=LEFT, padx=8)
+        self.export_button = Button(controls, text="Export CSV + JSON", width=18, command=self.export)
+        self.export_button.pack(side=LEFT)
 
         self.listbox = Listbox(root, font=("Consolas", 9))
         self.listbox.pack(fill=BOTH, expand=True, padx=12, pady=12)
+        Label(root, textvariable=self.status_text, anchor="w").pack(fill="x", padx=12, pady=(0, 10))
+        self.root.after(150, self.poll_results)
 
     def choose(self):
+        if self.busy:
+            return
         p = filedialog.askdirectory(parent=self.root, title="Choose folder to audit")
         if p:
             self.folder = Path(p)
+            self.records = []
+            self.status_text.set("Choose Run audit to begin. Results will be read-only.")
             self.listbox.delete(0, END)
             self.listbox.insert(END, f"Folder: {self.folder}")
 
     def audit(self):
+        if self.busy:
+            return
         if not self.folder:
             return messagebox.showinfo("Folder Privacy Auditor", "Choose a folder first.")
-        try:
-            self.records = audit_folder(self.folder)
-            self.listbox.delete(0, END)
-            summary = summarize_audit(self.records)
-            self.listbox.insert(
-                END,
-                f"Files {summary['files']} | Review {summary['review']} | "
-                f"Uninspected {summary['uninspected']} | Failed {summary['failed']} "
-                f"| {summary['logical_bytes'] / (1024**2):.1f} MiB logical",
-            )
-            self.listbox.insert(END, "Limited pattern scan only. Uninspected does NOT mean safe.")
-            self.listbox.insert(END, "---")
-            for record in self.records:
-                flags = ", ".join(record["notes"]) or "No pattern candidate in checked portion"
-                limits = ", ".join(record["unchecked"])
-                self.listbox.insert(
-                    END, f"[{record['status']}] {record['path']} | "
-                    f"{record['bytes']:,} bytes | {flags}"
-                )
-                if record["status"] != "LIMITED":
-                    self.listbox.insert(END, f"    Not checked: {limits}")
+        self.busy = True
+        self.records = []
+        self.choose_button.configure(state="disabled")
+        self.audit_button.configure(state="disabled")
+        self.export_button.configure(state="disabled")
+        self.status_text.set("Auditing locally... this may take time for large folders.")
+        selected = self.folder
 
-        except Exception as exc:
-            messagebox.showerror("Folder Privacy Auditor", str(exc))
+        def scan_worker():
+            try:
+                result = audit_folder(selected)
+                self.results_queue.put((True, result))
+            except Exception as exc:
+                self.results_queue.put((False, str(exc)))
+
+        threading.Thread(target=scan_worker, daemon=True).start()
+
+    def poll_results(self):
+        try:
+            while True:
+                ok, payload = self.results_queue.get_nowait()
+                self.busy = False
+                self.choose_button.configure(state="normal")
+                self.audit_button.configure(state="normal")
+                self.export_button.configure(state="normal")
+                if not ok:
+                    self.records = []
+                    self.status_text.set("Audit failed; no report created.")
+                    messagebox.showerror("Folder Privacy Auditor", payload)
+                    continue
+                self.records = payload
+                summary = summarize_audit(self.records)
+                self.listbox.delete(0, END)
+                self.listbox.insert(
+                    END,
+                    f"Files {summary['files']} | Review {summary['review']} | "
+                    f"Uninspected {summary['uninspected']} | Failed {summary['failed']} "
+                    f"| {summary['logical_bytes'] / (1024**2):.1f} MiB logical",
+                )
+                self.listbox.insert(END, "Limited pattern scan only. Uninspected does NOT mean safe.")
+                self.listbox.insert(END, "---")
+                for record in self.records[:2000]:
+                    flags = ", ".join(record["notes"]) or "No candidate in checked portion"
+                    self.listbox.insert(
+                        END, f"[{record['status']}] {record['path']} "
+                        f"| {record['bytes']:,} bytes | {flags}",
+                    )
+                    if record["status"] != "LIMITED":
+                        self.listbox.insert(END, "    Not checked: " + ", ".join(record["unchecked"]))
+                if len(self.records) > 2000:
+                    self.listbox.insert(END, "... More records in exported CSV/JSON (all records retained).")
+                self.status_text.set("Audit finished. No files were deleted. Review all uninspected areas.")
+        except queue.Empty:
+            pass
+        self.root.after(150, self.poll_results)
 
     def export(self):
+        if self.busy:
+            return messagebox.showinfo("Folder Privacy Auditor", "Audit is still running.")
         if not self.folder or not self.records:
             return messagebox.showinfo("Folder Privacy Auditor", "Run the audit before exporting.")
         p = filedialog.asksaveasfilename(
