@@ -25,3 +25,16 @@ GitHub Actionsは手動実行のみ。Windowsでの完成検証・署名・販�
 ## Windows QA evidence and manual acceptance (2026-10-13)
 
 See [Windows QA Runbook](docs/WINDOWS_QA_RUNBOOK.md) for unsigned build verification, manual checks and local evidence. **This is not a sales release.**
+
+
+## 2026-10-18: 容量履歴・前回比較の改善（独立開発ブランチ）
+
+**基本操作は2か所を指定して1回クリック:** 調査フォルダとレポート保存先を選択し、「スキャン開始（読み取りのみ）」を押します。2回目以降は同じフォルダを対象にした最新の有効レポートを自動で探し、容量増減と分類別の差を表示します。必要な場合のみ「詳細」から比較するレポートを手動指定できます。
+
+- 初回は比較対象なしと表示。結果が不足する場合は推定値として明示します。
+- 別フォルダのレポート、不正なJSON、サイズ異常、リンク経由の履歴は比較対象外。
+- 過去のレポート・調査フォルダのファイルは変更・削除しません。
+- 論理ファイルサイズの比較であり、ディスクの物理使用量を保証しません。
+- 既存のWindows GUI、テスト・QAスクリプト、フォーム等の他機能は保護したままです。
+
+開発専用・販売HOLDです。コードに加えたテストは実行証拠が必要です。コマンド・受入基準は [容量履歴QAと販売ゲート](docs/STORAGE_HISTORY_QA.md) を参照してください。
