@@ -51,7 +51,7 @@ def classify(parts: tuple[str, ...]) -> str:
 
 
 def analyze(root_dir: str | Path, reports_dir: str | Path,
-            baseline_file: str | Path | None = None) -> Path:
+            baseline_file: str | Path | None = None, *, auto_history: bool = False) -> Path:
     requested = Path(root_dir).expanduser()
     if reparse(requested):
         raise ValueError("Root symlink/reparse location not supported")
@@ -61,6 +61,11 @@ def analyze(root_dir: str | Path, reports_dir: str | Path,
     reports = Path(reports_dir).expanduser().resolve()
     if reports == root or reports.is_relative_to(root):
         raise ValueError("Reports must be outside scan root")
+    automatic_baseline = False
+    if auto_history and baseline_file is None:
+        from storage_history import find_previous_snapshot
+        baseline_file = find_previous_snapshot(reports, root)
+        automatic_baseline = baseline_file is not None
     category_bytes: dict[str, int] = defaultdict(int)
     category_files: dict[str, int] = defaultdict(int)
     first_level_bytes: dict[str, int] = defaultdict(int)
@@ -134,10 +139,20 @@ def analyze(root_dir: str | Path, reports_dir: str | Path,
             "This tool never deletes, moves, repairs or cleans files.",
         ],
     }
+    snapshot["comparison_status"] = "NOT_COMPARED"
     if baseline_file:
         baseline = json.loads(Path(baseline_file).read_text(encoding="utf-8"))
         if baseline.get("format") != VERSION or baseline.get("root") != str(root):
             raise ValueError("Baseline format/root mismatch")
+        if type(baseline.get("total_logical_bytes")) is not int:
+            raise ValueError("Baseline is missing total logical bytes")
+        if not isinstance(baseline.get("category_bytes"), dict):
+            raise ValueError("Baseline category breakdown is invalid")
+        if any(type(v) is not int or v < 0 for v in baseline["category_bytes"].values()):
+            raise ValueError("Baseline category breakdown has invalid values")
+        snapshot["comparison_status"] = "COMPARED"
+        snapshot["comparison_source"] = "automatic_previous" if automatic_baseline else "selected_baseline"
+        snapshot["baseline_report"] = str(Path(baseline_file).resolve())
         categories = set(baseline.get("category_bytes", {})) | set(snapshot["category_bytes"])
         snapshot["growth_by_category"] = {
             k: snapshot["category_bytes"].get(k, 0) - baseline["category_bytes"].get(k, 0)
@@ -160,8 +175,10 @@ def main() -> None:
     p.add_argument("scan_folder")
     p.add_argument("report_folder")
     p.add_argument("--baseline", help="Previous storage_report.json from same root")
+    p.add_argument("--compare-previous", action="store_true", help="Find previous same-root local report automatically")
     args = p.parse_args()
-    output = analyze(args.scan_folder, args.report_folder, args.baseline)
+    output = analyze(args.scan_folder, args.report_folder, args.baseline,
+                     auto_history=args.compare_previous)
     print(output / "storage_report.json")
 
 
