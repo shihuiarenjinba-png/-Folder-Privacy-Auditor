@@ -1,0 +1,44 @@
+name: Storage history regression
+on:
+  push:
+    branches: [improve/storage-history-20261018]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  history-unit:
+    name: Pure Python tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Syntax compilation
+        run: python -m compileall -q storage_cause_analyzer.py storage_history.py storage_cause_gui.py tests
+      - name: Storage analysis, preferences, and history regressions
+        run: python -m unittest discover -s tests -p "test_*.py" -v
+
+  windows-gui:
+    name: Windows GUI and automatic growth E2E
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Unit and history tests
+        run: python -m unittest discover -s tests -p "test_*.py" -v
+      - name: Python-level Tk startup validation
+        run: python storage_cause_gui.py --smoke-test --smoke-output ui-proof.json
+      - name: Synthetic GUI operations and negative case
+        run: python storage_cause_gui.py --e2e-test gui-e2e-proof.json
+      - name: Print synthetic-only proofs
+        shell: pwsh
+        run: |
+          Get-Content -Raw ui-proof.json
+          Get-Content -Raw gui-e2e-proof.json
