@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from storage_cause_analyzer import analyze
+from storage_cause_analyzer import analyze, VERSION, reparse
 from storage_history import find_previous_snapshot
 
 
@@ -50,7 +50,7 @@ class StorageHistoryTests(unittest.TestCase):
         garbage = self.reports / "storage_cause_garbage"
         garbage.mkdir()
         (garbage / "storage_report.json").write_text("{not-json", encoding="utf-8")
-        self.assertIsNone(find_previous_snapshot(self.reports, self.source))
+        self.assertIsNone(find_previous_snapshot(self.reports, self.source, format_version=VERSION, is_reparse=reparse))
         result = self._read(analyze(self.source, self.reports, auto_history=True))
         self.assertEqual(result["comparison_status"], "NOT_COMPARED")
 
@@ -87,7 +87,7 @@ class StorageHistoryTests(unittest.TestCase):
             shortcut.symlink_to(real, target_is_directory=True)
         except (OSError, NotImplementedError):
             self.skipTest("Creating directory links is not allowed on this Windows account")
-        self.assertIsNone(find_previous_snapshot(self.reports, self.source))
+        self.assertIsNone(find_previous_snapshot(self.reports, self.source, format_version=VERSION, is_reparse=reparse))
 
 
 if __name__ == "__main__":
