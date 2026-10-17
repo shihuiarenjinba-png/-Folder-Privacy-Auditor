@@ -43,10 +43,8 @@ class StorageCauseGUI(tk.Tk):
         self.advanced_frame = ttk.Frame(parent)
         self.advanced_frame.columnconfigure(1, weight=1)
         self._file(self.advanced_frame, 0, "前回レポート（任意）", self.baseline, "json")
-        ttk.Label(parent, text="2回目以降は同じ調査フォルダの前回レポートと自動比較します。",
-                  wraplength=820).grid(row=4, column=0, columnspan=3, sticky="w")
-        ttk.Label(parent, text="Python仮想環境、node_modules、ビルド成果物、キャッシュ等を分類。"
-                  "容量は論理ファイルサイズです。実ディスク占有量ではありません。",
+        ttk.Label(parent, text="同じ調査フォルダの前回レポートと自動比較します。"
+                  "容量は論理ファイルサイズであり、実際のディスク占有量ではありません。",
                   wraplength=820).grid(row=4, column=0, columnspan=3, sticky="w", pady=(10, 10))
         self.run_button = ttk.Button(parent, text="スキャン開始（読み取りのみ）", command=self.start)
         self.run_button.grid(row=5, column=0, columnspan=3, sticky="w", pady=(0, 12))
