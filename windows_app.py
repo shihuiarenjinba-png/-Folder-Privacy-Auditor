@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import hashlib
 import json
+import os
 import re
 import stat
 from collections import defaultdict
@@ -109,66 +110,134 @@ def is_hidden_path(path: Path, root: Path) -> bool:
         return False
 
 
+MAX_FILES = 150_000
+HASH_LIMIT_BYTES = 50 * 1024 * 1024
+TEXT_SCAN_LIMIT_BYTES = 1_000_000
+
+
+def _reparse_or_symlink(path: Path) -> bool:
+    """Never follow symlinks, junctions or any Windows reparse point."""
+    try:
+        info = path.lstat()
+        return path.is_symlink() or bool(getattr(info, "st_file_attributes", 0) & 0x400)
+    except OSError:
+        return True
+
+
+def _record(path: str, *, note: str, status: str = "UNINSPECTED") -> dict:
+    return {
+        "path": path, "extension": Path(path).suffix.lower(), "bytes": 0,
+        "hidden": False, "risky_data_type": False,
+        "email_candidate": False, "phone_candidate": False, "long_id_candidate": False,
+        "duplicate_group": "", "sha256": "",
+        "status": status, "checked": [], "unchecked": [note], "notes": [note],
+    }
+
+
 def audit_folder(root: Path) -> list[dict]:
+    """Read-only inventory with explicit per-file coverage and traversal failures."""
+    if _reparse_or_symlink(root):
+        raise ValueError("Cannot audit through a symlink, junction or reparse root.")
+    root = root.resolve(strict=True)
+    if not root.is_dir():
+        raise ValueError("Choose a directory.")
     records: list[dict] = []
     hashes: dict[str, list[int]] = defaultdict(list)
+    stack = [root]
+    counted = 0
+    truncated = False
 
-    for path in root.rglob("*"):
-        if not path.is_file():
-            continue
-        rel = str(path.relative_to(root))
+    while stack and not truncated:
+        folder = stack.pop()
         try:
-            size = path.stat().st_size
-        except OSError:
+            with os.scandir(folder) as iterator:
+                children = list(iterator)
+        except OSError as exc:
+            records.append(_record(str(folder.relative_to(root)),
+                                   note=f"directory not inspected: {type(exc).__name__}",
+                                   status="FAILED"))
             continue
-
-        rec = {
-            "path": rel,
-            "extension": path.suffix.lower(),
-            "bytes": size,
-            "hidden": is_hidden_path(path, root),
-            "risky_data_type": path.suffix.lower() in RISKY_EXT,
-            "email_candidate": False,
-            "phone_candidate": False,
-            "long_id_candidate": False,
-            "duplicate_group": "",
-            "sha256": "",
-            "notes": [],
-        }
-
-        if rec["hidden"]:
-            rec["notes"].append("hidden file/path")
-        if rec["risky_data_type"]:
-            rec["notes"].append("data-bearing file type")
-
-        if size <= 50 * 1024 * 1024:
+        for item in children:
+            path = Path(item.path)
+            rel = str(path.relative_to(root))
             try:
-                digest = sha256_file(path)
-                rec["sha256"] = digest
-                hashes[digest].append(len(records))
-            except OSError as exc:
-                rec["notes"].append(f"hash failed: {exc}")
-        else:
-            rec["notes"].append("hash skipped >50MB")
-
-        if path.suffix.lower() in TEXTLIKE and size <= 2 * 1024 * 1024:
-            try:
-                text = sample_text(path)
-                rec["email_candidate"] = bool(find_email_candidates(text))
-                rec["phone_candidate"] = bool(PHONE_RE.search(text))
-                rec["long_id_candidate"] = bool(LONG_ID_RE.search(text))
-                if rec["email_candidate"]:
-                    rec["notes"].append("email candidate")
-                if rec["phone_candidate"]:
-                    rec["notes"].append("phone candidate")
-                if rec["long_id_candidate"]:
-                    rec["notes"].append("long numeric identifier candidate (warning only)")
-            except (OSError, UnicodeError) as exc:
-                rec["notes"].append(f"content scan failed (manual review required): {exc}")
-        elif path.suffix.lower() in TEXTLIKE and size > 2 * 1024 * 1024:
-            rec["notes"].append("content scan skipped >2MB (manual review required)")
-
-        records.append(rec)
+                if _reparse_or_symlink(path):
+                    records.append(_record(rel, note="link/reparse target not inspected"))
+                    continue
+                info = item.stat(follow_symlinks=False)
+                if stat.S_ISDIR(info.st_mode):
+                    stack.append(path)
+                    continue
+                if not stat.S_ISREG(info.st_mode):
+                    records.append(_record(rel, note="not a regular file; content not inspected"))
+                    continue
+                counted += 1
+                if counted > MAX_FILES:
+                    records.append(_record("(limit)", note=f"scan capped at {MAX_FILES} files"))
+                    truncated = True
+                    break
+                size = int(info.st_size)
+                ext = path.suffix.lower()
+                rec = _record(rel, note="content not inspected")
+                rec.update({
+                    "bytes": size,
+                    "extension": ext,
+                    "hidden": is_hidden_path(path, root),
+                    "risky_data_type": ext in RISKY_EXT,
+                    "status": "UNINSPECTED",
+                    "checked": ["file name, size and hidden/path indicators"],
+                    "unchecked": [],
+                    "notes": [],
+                })
+                if rec["hidden"]:
+                    rec["notes"].append("hidden file/path")
+                if rec["risky_data_type"]:
+                    rec["notes"].append("data-bearing file type")
+                if size <= HASH_LIMIT_BYTES:
+                    try:
+                        digest = sha256_file(path)
+                        rec["sha256"] = digest
+                        hashes[digest].append(len(records))
+                        rec["checked"].append("SHA256 byte hash")
+                    except OSError as exc:
+                        rec["unchecked"].append(f"hash failed: {type(exc).__name__}")
+                else:
+                    rec["unchecked"].append("hash skipped >50MB")
+                if ext in TEXTLIKE:
+                    if size <= 2 * 1024 * 1024:
+                        try:
+                            text = sample_text(path, limit=TEXT_SCAN_LIMIT_BYTES)
+                            rec["checked"].append("text-pattern sample, up to first 1MB")
+                            if size > TEXT_SCAN_LIMIT_BYTES:
+                                rec["unchecked"].append("text beyond first 1MB not scanned")
+                            rec["email_candidate"] = bool(find_email_candidates(text))
+                            rec["phone_candidate"] = bool(PHONE_RE.search(text))
+                            rec["long_id_candidate"] = bool(LONG_ID_RE.search(text))
+                            if rec["email_candidate"]:
+                                rec["notes"].append("email candidate")
+                            if rec["phone_candidate"]:
+                                rec["notes"].append("phone candidate")
+                            if rec["long_id_candidate"]:
+                                rec["notes"].append("long numeric identifier candidate (warning only)")
+                        except (OSError, UnicodeError) as exc:
+                            rec["unchecked"].append(f"content scan failed (manual review required): {type(exc).__name__}")
+                            rec["notes"].append("content scan failed (manual review required)")
+                    else:
+                        rec["unchecked"].append("content scan skipped >2MB (manual review required)")
+                else:
+                    rec["unchecked"].append("format-specific content not inspected")
+                if rec["risky_data_type"] or rec["hidden"] or rec["email_candidate"] or rec["phone_candidate"] or rec["long_id_candidate"]:
+                    rec["status"] = "REVIEW"
+                elif rec["unchecked"]:
+                    rec["status"] = "UNINSPECTED"
+                else:
+                    # Pattern checks cannot certify privacy even when no match.
+                    rec["status"] = "LIMITED"
+                rec["unchecked"].append("privacy not certified; undiscovered personal data may remain")
+                records.append(rec)
+            except (OSError, ValueError) as exc:
+                records.append(_record(rel, note=f"file access/scan failed: {type(exc).__name__}",
+                                       status="FAILED"))
 
     group_num = 1
     for digest, indices in hashes.items():
@@ -178,7 +247,23 @@ def audit_folder(root: Path) -> list[dict]:
             for idx in indices:
                 records[idx]["duplicate_group"] = label
                 records[idx]["notes"].append("duplicate content")
+                records[idx]["status"] = "REVIEW"
     return records
+
+
+def summarize_audit(records: list[dict]) -> dict:
+    """One-screen summary; skipped files must not disappear from totals."""
+    regular = [r for r in records if "file name, size and hidden/path indicators" in r["checked"]]
+    return {
+        "files": len(regular),
+        "logical_bytes": sum(r["bytes"] for r in regular),
+        "review": sum(r["status"] == "REVIEW" for r in regular),
+        "limited": sum(r["status"] == "LIMITED" for r in regular),
+        "uninspected": sum(r["status"] == "UNINSPECTED" for r in records),
+        "failed": sum(r["status"] == "FAILED" for r in records),
+        "duplicated": sum(bool(r["duplicate_group"]) for r in regular),
+        "scope": "Read-only, pattern-based, partial by design; no automatic deletions",
+    }
 
 
 def export_reports(records: list[dict], output_base: Path) -> tuple[Path, Path]:
