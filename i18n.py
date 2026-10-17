@@ -28,6 +28,13 @@ TEXTS = {
 PHRASES = (
     ("hidden file/path", "隠しファイル/パス"),
     ("Not checked:", "未検査:"),
+    ("Auditing locally... this may take time for large folders.", "ローカルで監査中です。大きなフォルダでは時間がかかります。"),
+    ("Audit finished. No files were deleted. Review all uninspected areas.", "監査完了。ファイル削除なし。未検査の範囲を確認してください。"),
+    ("Choose Run audit to begin. Results will be read-only.", "「監査を実行」で開始します。読み取り専用です。"),
+    ("More records in exported CSV/JSON", "残りの記録は出力CSV/JSONで確認できます"),
+    ("Audit is still running.", "監査を実行中です。"),
+    ("Audit failed; no report created.", "監査失敗。レポートは作成していません。"),
+
     ("Uninspected", "未検査"), ("UNINSPECTED", "未検査"),
     ("Failed", "失敗"), ("FAILED", "失敗"),
     ("Review", "要確認"), ("REVIEW", "要確認"),
