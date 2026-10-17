@@ -8,17 +8,18 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-
-from storage_cause_analyzer import VERSION, reparse
+from typing import Callable
 
 MAX_REPORTS_TO_CHECK = 2000
 MAX_REPORT_BYTES = 1_000_000
 
 
-def find_previous_snapshot(reports_dir: str | Path, resolved_root: str | Path) -> Path | None:
+def find_previous_snapshot(reports_dir: str | Path, resolved_root: str | Path,
+                           *, format_version: str,
+                           is_reparse: Callable[[Path], bool]) -> Path | None:
     reports = Path(reports_dir)
     root = str(Path(resolved_root).resolve(strict=True))
-    if reparse(reports) or not reports.is_dir():
+    if is_reparse(reports) or not reports.is_dir():
         return None
     matching: list[tuple[int, str, Path]] = []
     try:
@@ -29,10 +30,10 @@ def find_previous_snapshot(reports_dir: str | Path, resolved_root: str | Path) -
                 if not entry.name.startswith("storage_cause_"):
                     continue
                 folder = Path(entry.path)
-                if reparse(folder) or not entry.is_dir(follow_symlinks=False):
+                if is_reparse(folder) or not entry.is_dir(follow_symlinks=False):
                     continue
                 report = folder / "storage_report.json"
-                if reparse(report) or not report.is_file():
+                if is_reparse(report) or not report.is_file():
                     continue
                 try:
                     info = report.stat()
@@ -40,7 +41,7 @@ def find_previous_snapshot(reports_dir: str | Path, resolved_root: str | Path) -
                         continue
                     data = json.loads(report.read_text(encoding="utf-8"))
                     size = data.get("total_logical_bytes")
-                    if (data.get("format") != VERSION or data.get("root") != root
+                    if (data.get("format") != format_version or data.get("root") != root
                             or type(size) is not int or size < 0
                             or not isinstance(data.get("category_bytes"), dict)
                             or data.get("status") not in {"PARTIAL", "COMPLETE_FOR_REGULAR_FILES"}):
