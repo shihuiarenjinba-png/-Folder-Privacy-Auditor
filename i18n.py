@@ -12,6 +12,9 @@ _PATCHED = False
 TEXTS = {
     "Folder Privacy Auditor": ("Folder Privacy Auditor", "フォルダプライバシー監査"),
     "Folder Privacy Auditor — Windows": ("Folder Privacy Auditor — Windows", "フォルダプライバシー監査 — Windows"),
+    "Choose folder → inspect → export report. Read-only; never deletes anything.": ("Choose folder → inspect → export report. Read-only; never deletes anything.", "フォルダ選択 → 点検 → レポート出力。読み取り専用で削除はしません。"),
+    "Run the audit before exporting.": ("Run the audit before exporting.", "先にフォルダの監査を実行してください。"),
+
     "Audit a folder locally for data-bearing files, PII candidates, hidden files and duplicates.": ("Audit a folder locally for data-bearing files, PII candidates, hidden files and duplicates.", "フォルダをローカル監査し、データファイル・個人情報候補・隠しファイル・重複を確認します。"),
     "Choose folder": ("Choose folder", "フォルダを選択"),
     "Run audit": ("Run audit", "監査を実行"),
@@ -24,6 +27,19 @@ TEXTS = {
 
 PHRASES = (
     ("hidden file/path", "隠しファイル/パス"),
+    ("Not checked:", "未検査:"),
+    ("Uninspected", "未検査"), ("UNINSPECTED", "未検査"),
+    ("Failed", "失敗"), ("FAILED", "失敗"),
+    ("Review", "要確認"), ("REVIEW", "要確認"),
+    ("LIMITED", "限定的な検査"),
+    ("link/reparse target not inspected", "リンク/再解析ポイントの参照先は未検査"),
+    ("format-specific content not inspected", "形式に応じた内容検査は未実施"),
+    ("text beyond first 1MB not scanned", "先頭1MBを超えるテキストは未検査"),
+    ("privacy not certified; undiscovered personal data may remain", "プライバシー安全性は未保証。未検出の個人情報が残る可能性"),
+    ("Limited pattern scan only. Uninspected does NOT mean safe.", "限定的なパターン検査のみ。未検査は安全を意味しません。"),
+    ("Report output must be outside the scanned folder.", "レポート出力先は監査対象フォルダの外に指定してください。"),
+    ("One or both report filenames already exist; choose another name.", "レポートファイルが既に存在します。別の名前を指定してください。"),
+
     ("data-bearing file type", "データを含む可能性がある形式"),
     ("hash failed", "ハッシュ失敗"),
     ("hash skipped >50MB", "50MB超のためハッシュ省略"),
