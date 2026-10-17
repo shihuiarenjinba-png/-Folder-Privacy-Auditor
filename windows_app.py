@@ -266,22 +266,46 @@ def summarize_audit(records: list[dict]) -> dict:
     }
 
 
-def export_reports(records: list[dict], output_base: Path) -> tuple[Path, Path]:
+def export_reports(records: list[dict], output_base: Path,
+                   scanned_root: Path | None = None) -> tuple[Path, Path]:
+    """Export new reports only, never replace files or write into a scanned tree."""
     csv_path = output_base.with_suffix(".csv")
     json_path = output_base.with_suffix(".json")
+    if scanned_root is not None:
+        root = scanned_root.resolve(strict=True)
+        if csv_path.resolve().is_relative_to(root) or json_path.resolve().is_relative_to(root):
+            raise ValueError("Report output must be outside the scanned folder.")
+    if csv_path.exists() or json_path.exists() or csv_path.is_symlink() or json_path.is_symlink():
+        raise FileExistsError("One or both report filenames already exist; choose another name.")
     fields = [
         "path", "extension", "bytes", "hidden", "risky_data_type",
         "email_candidate", "phone_candidate", "long_id_candidate",
-        "duplicate_group", "sha256", "notes",
+        "duplicate_group", "sha256", "status", "checked", "unchecked", "notes",
     ]
-    with csv_path.open("w", encoding="utf-8-sig", newline="") as fh:
-        writer = csv.DictWriter(fh, fieldnames=fields)
-        writer.writeheader()
-        for rec in records:
-            row = dict(rec)
-            row["notes"] = "; ".join(row["notes"])
-            writer.writerow(row)
-    json_path.write_text(json.dumps(records, ensure_ascii=False, indent=2), encoding="utf-8")
+    created_csv = False
+    created_json = False
+    try:
+        with csv_path.open("x", encoding="utf-8-sig", newline="") as fh:
+            created_csv = True
+            writer = csv.DictWriter(fh, fieldnames=fields)
+            writer.writeheader()
+            for rec in records:
+                row = dict(rec)
+                for field in ("checked", "unchecked", "notes"):
+                    row[field] = "; ".join(row[field])
+                writer.writerow({field: row[field] for field in fields})
+        with json_path.open("x", encoding="utf-8") as fh:
+            created_json = True
+            json.dump(
+                {"schema_version": 2, "summary": summarize_audit(records),
+                 "records": records}, fh, ensure_ascii=False, indent=2,
+            )
+    except BaseException:
+        if created_csv:
+            csv_path.unlink(missing_ok=True)
+        if created_json:
+            json_path.unlink(missing_ok=True)
+        raise
     return csv_path, json_path
 
 
@@ -296,10 +320,7 @@ class App:
         head = Frame(root, padx=12, pady=12)
         head.pack(fill="x")
         Label(head, text="Folder Privacy Auditor", font=("Segoe UI", 20, "bold")).pack(anchor="w")
-        Label(
-            head,
-            text="Audit a folder locally for data-bearing files, PII candidates, hidden files and duplicates.",
-        ).pack(anchor="w")
+        Label(head, text="Choose folder → inspect → export report. Read-only; never deletes anything.").pack(anchor="w")
 
         controls = Frame(root, padx=12)
         controls.pack(fill="x")
@@ -323,27 +344,31 @@ class App:
         try:
             self.records = audit_folder(self.folder)
             self.listbox.delete(0, END)
-            flagged = 0
-            for record in self.records:
-                flags = ", ".join(record["notes"])
-                if flags:
-                    flagged += 1
-                self.listbox.insert(
-                    END,
-                    f"{record['path']} | {record['bytes']:,} bytes | {flags or 'no flag'}",
-                )
+            summary = summarize_audit(self.records)
             self.listbox.insert(
                 END,
-                f"--- Files: {len(self.records):,} / flagged: {flagged:,} ---",
+                f"Files {summary['files']} | Review {summary['review']} | "
+                f"Uninspected {summary['uninspected']} | Failed {summary['failed']} "
+                f"| {summary['logical_bytes'] / (1024**2):.1f} MiB logical",
             )
+            self.listbox.insert(END, "Limited pattern scan only. Uninspected does NOT mean safe.")
+            self.listbox.insert(END, "---")
+            for record in self.records:
+                flags = ", ".join(record["notes"]) or "No pattern candidate in checked portion"
+                limits = ", ".join(record["unchecked"])
+                self.listbox.insert(
+                    END, f"[{record['status']}] {record['path']} | "
+                    f"{record['bytes']:,} bytes | {flags}"
+                )
+                if record["status"] != "LIMITED":
+                    self.listbox.insert(END, f"    Not checked: {limits}")
+
         except Exception as exc:
             messagebox.showerror("Folder Privacy Auditor", str(exc))
 
     def export(self):
-        if not self.records:
-            self.audit()
-        if not self.records:
-            return
+        if not self.folder or not self.records:
+            return messagebox.showinfo("Folder Privacy Auditor", "Run the audit before exporting.")
         p = filedialog.asksaveasfilename(
             parent=self.root,
             title="Report base name",
@@ -354,7 +379,7 @@ class App:
         if not p:
             return
         try:
-            csv_path, json_path = export_reports(self.records, Path(p))
+            csv_path, json_path = export_reports(self.records, Path(p), scanned_root=self.folder)
             messagebox.showinfo("Folder Privacy Auditor", f"Saved:\n{csv_path}\n{json_path}")
         except Exception as exc:
             messagebox.showerror("Folder Privacy Auditor", str(exc))
