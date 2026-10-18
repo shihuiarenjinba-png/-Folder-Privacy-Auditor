@@ -268,6 +268,15 @@ def summarize_audit(records: list[dict]) -> dict:
     }
 
 
+def _safe_csv_report_cell(value):
+    """Protect the audit CSV from formula evaluation when opened in Excel."""
+    if isinstance(value, str):
+        leading = value.lstrip(" \t\r\n")
+        if leading.startswith(("=", "+", "-", "@")) or value[:1] in ("\t", "\r", "\n"):
+            return "'" + value
+    return value
+
+
 def export_reports(records: list[dict], output_base: Path,
                    scanned_root: Path | None = None) -> tuple[Path, Path]:
     """Export new reports only, never replace files or write into a scanned tree."""
@@ -284,6 +293,14 @@ def export_reports(records: list[dict], output_base: Path,
         "email_candidate", "phone_candidate", "long_id_candidate",
         "duplicate_group", "sha256", "status", "checked", "unchecked", "notes",
     ]
+    csv_escaped_cells = 0
+    for record in records:
+        for field in fields:
+            value = record[field]
+            if field in ("checked", "unchecked", "notes"):
+                value = "; ".join(value)
+            if _safe_csv_report_cell(value) != value:
+                csv_escaped_cells += 1
     created_csv = False
     created_json = False
     try:
@@ -295,11 +312,12 @@ def export_reports(records: list[dict], output_base: Path,
                 row = dict(rec)
                 for field in ("checked", "unchecked", "notes"):
                     row[field] = "; ".join(row[field])
-                writer.writerow({field: row[field] for field in fields})
+                writer.writerow({field: _safe_csv_report_cell(row[field]) for field in fields})
         with json_path.open("x", encoding="utf-8") as fh:
             created_json = True
             json.dump(
                 {"schema_version": 2, "summary": summarize_audit(records),
+                 "csv_escaped_formula_cells": csv_escaped_cells,
                  "records": records}, fh, ensure_ascii=False, indent=2,
             )
     except BaseException:
