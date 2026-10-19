@@ -1,7 +1,7 @@
 name: Folder privacy coverage regression
 on:
   push:
-    branches: [improve/read-only-coverage-20261018]
+    branches: [improve/read-only-coverage-20261018, 'ui/safe-product-upgrade-20261019']
   workflow_dispatch:
 permissions:
   contents: read
