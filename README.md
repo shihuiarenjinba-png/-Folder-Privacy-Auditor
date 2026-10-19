@@ -11,3 +11,9 @@
 `main` の Storage Cause AnalyzerとWindows向け検証資産は変更せずに保護しています。
 
 テスト・制限・販売条件は [WINDOWS.md](WINDOWS.md) を参照してください。**Microsoft Store販売: HOLD（未承認）**。
+
+## 検査結果の見やすさ向上（2026-10-19）
+
+`ui/safe-product-upgrade-20261019`では、結果一覧を ALL / REVIEW / LIMITED / UNINSPECTED / FAILED で絞り込めるようにしました。画面の行だけをフィルタし、CSV/JSONの保存対象は常に全件です。検査できなかった内容は結果欄で表示し、検出ゼロを安全認定しません。
+
+テスト: `tests/test_gui_status_filter.py`。Windows GUI/大容量/リンク・権限拒否試験、MSIX/WACK、ライセンス・素材権利は引き続き**HOLD**。
