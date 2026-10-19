@@ -10,7 +10,7 @@ import re
 import stat
 from collections import defaultdict
 from pathlib import Path
-from tkinter import BOTH, END, LEFT, Button, Frame, Label, Listbox, StringVar, Tk, filedialog, messagebox
+from tkinter import BOTH, END, LEFT, Button, Frame, Label, Listbox, StringVar, Tk, OptionMenu, filedialog, messagebox
 
 EMAIL_RE = re.compile(
     r"(?<![A-Z0-9._%+-])"
@@ -268,6 +268,15 @@ def summarize_audit(records: list[dict]) -> dict:
     }
 
 
+def filter_audit_records(records: list[dict], status: str) -> list[dict]:
+    """Status selector changes only displayed rows, never the full report."""
+    if status == "ALL":
+        return list(records)
+    if status not in {"REVIEW", "LIMITED", "UNINSPECTED", "FAILED"}:
+        raise ValueError("Unknown audit status filter")
+    return [r for r in records if r["status"] == status]
+
+
 def _safe_csv_report_cell(value):
     """Protect the audit CSV from formula evaluation when opened in Excel."""
     if isinstance(value, str):
@@ -339,6 +348,7 @@ class App:
         self.busy = False
         self.results_queue = queue.Queue()
         self.status_text = StringVar(value="Choose a folder. Audit does not modify input files.")
+        self.filter_status = StringVar(value="ALL")
 
         head = Frame(root, padx=12, pady=12)
         head.pack(fill="x")
@@ -354,6 +364,12 @@ class App:
         self.export_button = Button(controls, text="Export CSV + JSON", width=18, command=self.export)
         self.export_button.pack(side=LEFT)
 
+        filters = Frame(root, padx=12)
+        filters.pack(fill="x", pady=(10, 0))
+        Label(filters, text="Show results:").pack(side=LEFT)
+        OptionMenu(filters, self.filter_status, "ALL", "REVIEW", "LIMITED", "UNINSPECTED", "FAILED",
+                   command=lambda _value: self.render_filtered_results()).pack(side=LEFT)
+        Label(filters, text="The CSV/JSON report always contains ALL records.").pack(side=LEFT, padx=(8, 0))
         self.listbox = Listbox(root, font=("Consolas", 9))
         self.listbox.pack(fill=BOTH, expand=True, padx=12, pady=12)
         Label(root, textvariable=self.status_text, anchor="w").pack(fill="x", padx=12, pady=(0, 10))
@@ -366,6 +382,7 @@ class App:
         if p:
             self.folder = Path(p)
             self.records = []
+            self.filter_status.set("ALL")
             self.status_text.set("Choose Run audit to begin. Results will be read-only.")
             self.listbox.delete(0, END)
             self.listbox.insert(END, f"Folder: {self.folder}")
@@ -406,30 +423,36 @@ class App:
                     messagebox.showerror("Folder Privacy Auditor", payload)
                     continue
                 self.records = payload
-                summary = summarize_audit(self.records)
-                self.listbox.delete(0, END)
-                self.listbox.insert(
-                    END,
-                    f"Files {summary['files']} | Review {summary['review']} | "
-                    f"Uninspected {summary['uninspected']} | Failed {summary['failed']} "
-                    f"| {summary['logical_bytes'] / (1024**2):.1f} MiB logical",
-                )
-                self.listbox.insert(END, "Limited pattern scan only. Uninspected does NOT mean safe.")
-                self.listbox.insert(END, "---")
-                for record in self.records[:2000]:
-                    flags = ", ".join(record["notes"]) or "No candidate in checked portion"
-                    self.listbox.insert(
-                        END, f"[{record['status']}] {record['path']} "
-                        f"| {record['bytes']:,} bytes | {flags}",
-                    )
-                    if record["status"] != "LIMITED":
-                        self.listbox.insert(END, "    Not checked: " + ", ".join(record["unchecked"]))
-                if len(self.records) > 2000:
-                    self.listbox.insert(END, "... More records in exported CSV/JSON (all records retained).")
+                self.render_filtered_results()
                 self.status_text.set("Audit finished. No files were deleted. Review all uninspected areas.")
         except queue.Empty:
             pass
         self.root.after(150, self.poll_results)
+
+    def render_filtered_results(self):
+        if not self.records:
+            return
+        summary = summarize_audit(self.records)
+        visible = filter_audit_records(self.records, self.filter_status.get())
+        self.listbox.delete(0, END)
+        self.listbox.insert(END,
+            f"Total files {summary['files']} | Review {summary['review']} | "
+            f"Limited {summary['limited']} | Uninspected {summary['uninspected']} | "
+            f"Failed {summary['failed']} | {summary['logical_bytes']/(1024**2):.1f} MiB")
+        self.listbox.insert(END,
+            "Partial text/pattern scan only: LIMITED and zero findings never mean a folder is safe.")
+        self.listbox.insert(END,
+            f"Filter: {self.filter_status.get()} | displayed {min(len(visible), 2000)} / "
+            f"{len(visible)} matching; full report {len(self.records)} records.")
+        self.listbox.insert(END, "---")
+        for record in visible[:2000]:
+            flags = ", ".join(record["notes"]) or "No candidate in checked portion"
+            self.listbox.insert(END, f"[{record['status']}] {record['path']} "
+                f"| {record['bytes']:,} bytes | {flags}")
+            if record["unchecked"]:
+                self.listbox.insert(END, "    Not checked: " + ", ".join(record["unchecked"]))
+        if len(visible) > 2000:
+            self.listbox.insert(END, "Further results are available in the full CSV/JSON report.")
 
     def export(self):
         if self.busy:
