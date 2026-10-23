@@ -76,46 +76,39 @@ class PartnerCenterIdentityTests(unittest.TestCase):
         document = load_identity()
         self.assertEqual(document["schema_version"], 2)
         self.assertEqual(document["product_key"], "folder-privacy-auditor")
-        self.assertEqual(document["store_id"]["value"], "9PKMCT98XQF5")
-        self.assertEqual(document["store_id"]["verification_status"], "OWNER_PROVIDED_UNVERIFIED")
-        self.assertEqual(document["display_name"]["value"], "Folder Privacy Auditor")
-        self.assertEqual(document["display_name"]["verification_status"], "SOURCE_FOUND_NOT_LIVE_VERIFIED")
-
-        self.assertIsNone(document["identity_name"]["value"])
-        self.assertEqual(document["identity_name"]["verification_status"], "UNKNOWN")
-        self.assertIsNone(document["publisher_display_name"]["value"])
-        self.assertEqual(document["publisher_display_name"]["verification_status"], "UNKNOWN")
-        for name in ("identity_name", "publisher_display_name", "application_version", "package_version"):
-            self.assertTrue(document[name]["source_refs"], f"{name} must record what source was inspected")
-
-        self.assertEqual(document["publisher"]["value"], "CN=46263F21-A700-41DB-8C9B-114C22FB82FC")
-        self.assertEqual(document["publisher"]["verification_status"], "OWNER_PROVIDED_UNVERIFIED")
-        self.assertEqual(document["package_family_name"]["value"], "OkinawaDesktopTools.FolderPrivacyAuditor_j8yefg9jgfh58")
-        self.assertEqual(document["package_family_name"]["verification_status"], "OWNER_PROVIDED_UNVERIFIED")
-        self.assertEqual(document["package_sid"]["value"], "S-1-15-2-229571055-273319022-1876511600-168570693-2036010400-3661804863-2317016504")
-        self.assertEqual(document["package_sid"]["verification_status"], "OWNER_PROVIDED_UNVERIFIED")
-        for name in ("publisher", "package_family_name", "package_sid"):
+        expected = {
+            "store_id": "9PKMCT98XQF5",
+            "display_name": "Folder Privacy Auditor",
+            "identity_name": "OkinawaDesktopTools.FolderPrivacyAuditor",
+            "publisher": "CN=46263F21-A700-41DB-8C9B-114C22FB82FC",
+            "publisher_display_name": "Okinawa Desktop Tools",
+            "package_family_name": "OkinawaDesktopTools.FolderPrivacyAuditor_j8yefg9jgfh58",
+            "package_sid": "S-1-15-2-229571055-273319022-1876511600-168570693-2036010400-3661804863-2317016504",
+        }
+        for name, value in expected.items():
+            self.assertEqual(document[name]["value"], value)
+            self.assertEqual(document[name]["verification_status"], "PARTNER_CENTER_VERIFIED")
             self.assertTrue(
-                any(ref["type"] == "user_provided_screenshot" for ref in document[name]["source_refs"]),
-                f"{name} must retain screenshot provenance",
+                any(ref["type"] == "user_provided_partner_center_screenshot"
+                    for ref in document[name]["source_refs"]),
+                f"{name} must retain Partner Center screenshot provenance",
             )
-
-        self.assertTrue(any(
-            ref["path"] == "store/STORE_SUBMISSION_HANDOFF_JA.md"
-            and ref["commit_sha"] == "defd25ba587f2cfef0a00e283e679d9b9f21d1eb"
-            for ref in document["display_name"]["source_refs"]
-        ))
+        self.assertIsNone(document["application_version"]["value"])
+        self.assertEqual(document["application_version"]["verification_status"], "UNKNOWN")
+        self.assertIsNone(document["package_version"]["value"])
+        self.assertEqual(document["package_version"]["verification_status"], "UNKNOWN")
+        for name in ("application_version", "package_version"):
+            self.assertTrue(document[name]["source_refs"], f"{name} must record what source was inspected")
         self.assertTrue(validate_identity_document(document) == [])
 
     def test_unresolved_values_block_release_but_not_json_validation(self):
         document = load_identity()
         blockers = release_blockers(document)
         self.assertTrue(blockers)
-        self.assertTrue(any(item.startswith("store_id:") for item in blockers))
-        self.assertTrue(any(item.startswith("display_name:") for item in blockers))
-        self.assertTrue(any(item.startswith("identity_name:") for item in blockers))
-        self.assertTrue(any(item.startswith("publisher:") for item in blockers))
-        self.assertTrue(any(item.startswith("publisher_display_name:") for item in blockers))
+        self.assertEqual(
+            [item for item in blockers if item.startswith(("store_id:", "display_name:", "identity_name:", "publisher:", "publisher_display_name:"))],
+            [],
+        )
         self.assertTrue(any(item.startswith("package_version:") for item in blockers))
 
     def test_version_format_keeps_existing_conservative_project_policy(self):
