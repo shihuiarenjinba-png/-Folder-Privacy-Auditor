@@ -75,6 +75,35 @@ def validate_package_version(value: str) -> None:
         raise ValueError("The existing project policy requires the fourth component to be 0.")
 
 
+def validate_schema_definition(schema: Any) -> list[str]:
+    """Validate the shared schema file itself using only the Python standard library."""
+    errors: list[str] = []
+    if not isinstance(schema, dict):
+        return ["Identity schema root must be an object."]
+    if schema.get("$schema") != "https://json-schema.org/draft/2020-12/schema":
+        errors.append("Identity schema must declare JSON Schema draft 2020-12.")
+    properties = schema.get("properties")
+    if not isinstance(properties, dict):
+        return errors + ["Identity schema properties must be an object."]
+    if properties.get("schema_version", {}).get("const") != SCHEMA_VERSION:
+        errors.append(f"Shared schema must require schema_version={SCHEMA_VERSION}.")
+    expected_required = {"schema_version", "product_key", *FIELD_NAMES}
+    if set(schema.get("required", [])) != expected_required:
+        errors.append("Shared schema required fields do not match the identity-config contract.")
+    for name in FIELD_NAMES:
+        field_schema = properties.get(name)
+        if not isinstance(field_schema, dict) or field_schema.get("type") != "object":
+            errors.append(f"Shared schema is missing object field {name}.")
+            continue
+        if not {"value", "verification_status", "source_refs"}.issubset(set(field_schema.get("required", []))):
+            errors.append(f"Shared schema field {name} must require value, verification_status, and source_refs.")
+        nested = field_schema.get("properties", {})
+        status_schema = nested.get("verification_status", {}) if isinstance(nested, dict) else {}
+        if not VERIFICATION_STATUSES.issubset(set(status_schema.get("enum", []))):
+            errors.append(f"Shared schema field {name} does not declare all verification statuses.")
+    return errors
+
+
 def validate_identity_document(document: Any) -> list[str]:
     """Return structural/configuration errors without requiring release readiness."""
     errors: list[str] = []
@@ -177,7 +206,14 @@ def validate_identity_document(document: Any) -> list[str]:
 
 
 def load_identity(path: Path = IDENTITY_PATH) -> dict[str, Any]:
-    """Read and structurally validate one identity JSON document."""
+    """Read the shared schema and structurally validate one identity JSON document."""
+    try:
+        schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError) as exc:
+        raise ValueError(f"Shared identity schema is missing or invalid: {exc}") from exc
+    schema_errors = validate_schema_definition(schema)
+    if schema_errors:
+        raise ValueError("Identity schema validation failed:\n- " + "\n- ".join(schema_errors))
     try:
         document = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError as exc:
