@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "product_key": "folder-privacy-auditor",
+  "status": "NOT_APPROVED_TEMPLATE",
+  "approved_by": null,
+  "approval_date": null,
+  "evidence_reference": null,
+  "files": [
+    {
+      "path": "store-assets/assets/StoreLogo.png",
+      "width": 50,
+      "height": 50,
+      "sha256": null
+    },
+    {
+      "path": "store-assets/assets/Square44x44Logo.png",
+      "width": 44,
+      "height": 44,
+      "sha256": null
+    },
+    {
+      "path": "store-assets/assets/Square150x150Logo.png",
+      "width": 150,
+      "height": 150,
+      "sha256": null
+    }
+  ],
+  "note": "Template only. Do not rename to approval.json until the real artwork has been reviewed and approved."
+}
