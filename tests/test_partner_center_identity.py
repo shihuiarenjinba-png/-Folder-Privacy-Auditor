@@ -24,6 +24,7 @@ from store.identity_manifest import (  # noqa: E402
     render_manifest,
     validate_identity_document,
     validate_package_version,
+    validate_schema_definition,
 )
 
 
@@ -63,6 +64,7 @@ def complete_synthetic_document():
 class PartnerCenterIdentityTests(unittest.TestCase):
     def test_schema_declares_display_name_and_per_field_status(self):
         schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+        self.assertEqual(validate_schema_definition(schema), [])
         self.assertEqual(schema["properties"]["schema_version"]["const"], 2)
         self.assertIn("display_name", schema["required"])
         field_schema = schema["properties"]["display_name"]
