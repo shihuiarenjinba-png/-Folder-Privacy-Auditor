@@ -1,5 +1,5 @@
-# Isolated Group C EXE evidence pipeline; NOT a Store release and NOT an MSIX.
-# Only a fresh GitHub-hosted Windows checkout is altered by the existing builder.
+# Group C Windows evidence pipeline. Portable EXE is built first; MSIX uses a separate clean checkout.
+# No signing, Store upload, certification submission, or publication is performed.
 name: Group C portable prerequisite
 on:
   push:
@@ -59,3 +59,87 @@ jobs:
             dist/group-c-exe-evidence.json
           if-no-files-found: error
           retention-days: 14
+
+  package-unsigned-msix:
+    needs: build-portable
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - name: Fresh checkout for clean Store package gate
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Python for Store validation
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Read committed Store readiness
+        id: storegate
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $doc = Get-Content -LiteralPath 'store/partner-center-identity.json' -Raw -Encoding UTF8 | ConvertFrom-Json
+          $blockers = @()
+          foreach ($name in @('store_id','display_name','identity_name','publisher','publisher_display_name')) {
+            $field = $doc.$name
+            if ($null -eq $field -or [string]::IsNullOrWhiteSpace([string]$field.value) -or $field.verification_status -ne 'PARTNER_CENTER_VERIFIED') {
+              $blockers += "$name is not PARTNER_CENTER_VERIFIED"
+            }
+          }
+          if ($null -eq $doc.package_version -or [string]::IsNullOrWhiteSpace([string]$doc.package_version.value) -or $doc.package_version.verification_status -ne 'OWNER_APPROVED') {
+            $blockers += 'package_version is not OWNER_APPROVED'
+          }
+          $assets = Join-Path $PWD 'store-assets/assets'
+          $approvalPath = Join-Path $PWD 'store-assets/approval.json'
+          if (-not (Test-Path -LiteralPath $assets -PathType Container)) { $blockers += 'approved asset directory is missing' }
+          if (-not (Test-Path -LiteralPath $approvalPath -PathType Leaf)) {
+            $blockers += 'store-assets/approval.json is missing'
+          } else {
+            $approval = Get-Content -LiteralPath $approvalPath -Raw -Encoding UTF8 | ConvertFrom-Json
+            if ($approval.status -ne 'OWNER_APPROVED' -or $approval.product_key -ne 'folder-privacy-auditor') {
+              $blockers += 'brand assets are not owner-approved for this product'
+            }
+          }
+          $report = [ordered]@{ ready = ($blockers.Count -eq 0); blockers = $blockers; source_commit = $env:GITHUB_SHA; store_version = $doc.package_version.value }
+          $reportPath = Join-Path $env:RUNNER_TEMP 'group-c-msix-preflight.json'
+          $report | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $reportPath -Encoding UTF8
+          "ready=$($report.ready.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          if (-not $report.ready) {
+            Write-Host 'MSIX_STATUS=HOLD'
+            $blockers | ForEach-Object { Write-Host "MSIX_BLOCKER=$_" }
+          }
+
+      - name: Preserve Store readiness report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: group-c-msix-preflight-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/group-c-msix-preflight.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Download verified portable EXE
+        if: steps.storegate.outputs.ready == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: group-c-prerequisite-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/group-c-exe
+
+      - name: Build and verify unsigned Store MSIX candidate
+        if: steps.storegate.outputs.ready == 'true'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = Join-Path $env:RUNNER_TEMP 'group-c-exe/FolderPrivacyAuditor.exe'
+          $assets = Join-Path $PWD 'store-assets/assets'
+          & ./store/build-msix.ps1 -ExePath $exe -AssetsDirectory $assets
+          if ($LASTEXITCODE -ne 0) { throw "MSIX builder reported failure: $LASTEXITCODE" }
+
+      - name: Preserve unsigned MSIX candidate evidence
+        if: steps.storegate.outputs.ready == 'true' && success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: group-c-msix-candidate-${{ github.run_id }}-${{ github.run_attempt }}
+          path: dist-store/**
+          if-no-files-found: error
+          retention-days: 30
