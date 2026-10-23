@@ -3,147 +3,99 @@
   "product_key": "folder-privacy-auditor",
   "store_id": {
     "value": "9PKMCT98XQF5",
-    "verification_status": "OWNER_PROVIDED_UNVERIFIED",
+    "verification_status": "PARTNER_CENTER_VERIFIED",
     "source_refs": [
       {
-        "type": "user_instruction",
-        "reference": "追補指示 C-2 §§1,3",
+        "type": "user_provided_partner_center_screenshot",
+        "reference": "Folder Privacy Auditor Partner Center Product Identity screenshot — store_id",
         "path": null,
         "ref": null,
         "commit_sha": null,
-        "details": "Store ID supplied by the user from audit material. It has not been live-verified in Partner Center; keep unverified."
+        "details": "Owner-provided Microsoft Partner Center 'View product identity' screenshot in this conversation, 2026-10-23. The field is transcribed exactly from that screen."
       }
     ]
   },
   "display_name": {
     "value": "Folder Privacy Auditor",
-    "verification_status": "SOURCE_FOUND_NOT_LIVE_VERIFIED",
+    "verification_status": "PARTNER_CENTER_VERIFIED",
     "source_refs": [
       {
-        "type": "repository_file",
-        "reference": "Product title in the Microsoft Store handoff draft",
-        "path": "store/STORE_SUBMISSION_HANDOFF_JA.md",
-        "ref": "ui/safe-product-upgrade-20261019",
-        "commit_sha": "defd25ba587f2cfef0a00e283e679d9b9f21d1eb",
-        "details": "The document heading says 'Folder Privacy Auditor'. This confirms the source product title only; it does not live-verify Partner Center DisplayName."
+        "type": "user_provided_partner_center_screenshot",
+        "reference": "Folder Privacy Auditor Partner Center Product Identity screenshot — display_name",
+        "path": null,
+        "ref": null,
+        "commit_sha": null,
+        "details": "Owner-provided Microsoft Partner Center 'View product identity' screenshot in this conversation, 2026-10-23. The field is transcribed exactly from that screen."
       }
     ]
   },
   "identity_name": {
-    "value": null,
-    "verification_status": "UNKNOWN",
+    "value": "OkinawaDesktopTools.FolderPrivacyAuditor",
+    "verification_status": "PARTNER_CENTER_VERIFIED",
     "source_refs": [
       {
-        "type": "repository_file",
-        "reference": "Existing builder takes identity fields as external parameters; it does not define the assigned value.",
-        "path": "store/build-msix.ps1",
-        "ref": "ui/safe-product-upgrade-20261019",
-        "commit_sha": "defd25ba587f2cfef0a00e283e679d9b9f21d1eb",
-        "details": "Reviewed at the designated starting commit. This is evidence of an external-input design, not evidence for a production identity value."
-      },
-      {
-        "type": "repository_file",
-        "reference": "Product handoff requires live Partner Center verification for assigned identity values.",
-        "path": "store/STORE_SUBMISSION_HANDOFF_JA.md",
-        "ref": "ui/safe-product-upgrade-20261019",
-        "commit_sha": "defd25ba587f2cfef0a00e283e679d9b9f21d1eb",
-        "details": "Inspected source contains instructions to verify Name and Publisher in Partner Center but no exact assigned Name/Publisher/PublisherDisplayName/PFN/SID values."
+        "type": "user_provided_partner_center_screenshot",
+        "reference": "Folder Privacy Auditor Partner Center Product Identity screenshot — identity_name",
+        "path": null,
+        "ref": null,
+        "commit_sha": null,
+        "details": "Owner-provided Microsoft Partner Center 'View product identity' screenshot in this conversation, 2026-10-23. The field is transcribed exactly from that screen."
       }
     ]
   },
   "publisher": {
     "value": "CN=46263F21-A700-41DB-8C9B-114C22FB82FC",
-    "verification_status": "OWNER_PROVIDED_UNVERIFIED",
+    "verification_status": "PARTNER_CENTER_VERIFIED",
     "source_refs": [
       {
-        "type": "user_provided_screenshot",
-        "reference": "Folder Privacy Auditor product identity details screenshot shared earlier in this conversation",
+        "type": "user_provided_partner_center_screenshot",
+        "reference": "Folder Privacy Auditor Partner Center Product Identity screenshot — publisher",
         "path": null,
         "ref": null,
         "commit_sha": null,
-        "details": "The screenshot visibly shows this value. It is retained as owner-provided evidence only; this task does not independently re-open or live-verify the Partner Center record."
-      },
-      {
-        "type": "repository_file",
-        "reference": "Existing builder takes identity fields as external parameters; it does not define the assigned value.",
-        "path": "store/build-msix.ps1",
-        "ref": "ui/safe-product-upgrade-20261019",
-        "commit_sha": "defd25ba587f2cfef0a00e283e679d9b9f21d1eb",
-        "details": "Reviewed at the designated starting commit. This is evidence of an external-input design, not evidence for a production identity value."
-      },
-      {
-        "type": "repository_file",
-        "reference": "Product handoff requires live Partner Center verification for assigned identity values.",
-        "path": "store/STORE_SUBMISSION_HANDOFF_JA.md",
-        "ref": "ui/safe-product-upgrade-20261019",
-        "commit_sha": "defd25ba587f2cfef0a00e283e679d9b9f21d1eb",
-        "details": "Inspected source contains instructions to verify Name and Publisher in Partner Center but no exact assigned Name/Publisher/PublisherDisplayName/PFN/SID values."
+        "details": "Owner-provided Microsoft Partner Center 'View product identity' screenshot in this conversation, 2026-10-23. The field is transcribed exactly from that screen."
       }
     ]
   },
   "publisher_display_name": {
-    "value": null,
-    "verification_status": "UNKNOWN",
+    "value": "Okinawa Desktop Tools",
+    "verification_status": "PARTNER_CENTER_VERIFIED",
     "source_refs": [
       {
-        "type": "repository_file",
-        "reference": "Existing builder takes identity fields as external parameters; it does not define the assigned value.",
-        "path": "store/build-msix.ps1",
-        "ref": "ui/safe-product-upgrade-20261019",
-        "commit_sha": "defd25ba587f2cfef0a00e283e679d9b9f21d1eb",
-        "details": "Reviewed at the designated starting commit. This is evidence of an external-input design, not evidence for a production identity value."
-      },
-      {
-        "type": "repository_file",
-        "reference": "Product handoff requires live Partner Center verification for assigned identity values.",
-        "path": "store/STORE_SUBMISSION_HANDOFF_JA.md",
-        "ref": "ui/safe-product-upgrade-20261019",
-        "commit_sha": "defd25ba587f2cfef0a00e283e679d9b9f21d1eb",
-        "details": "Inspected source contains instructions to verify Name and Publisher in Partner Center but no exact assigned Name/Publisher/PublisherDisplayName/PFN/SID values."
+        "type": "user_provided_partner_center_screenshot",
+        "reference": "Folder Privacy Auditor Partner Center Product Identity screenshot — publisher_display_name",
+        "path": null,
+        "ref": null,
+        "commit_sha": null,
+        "details": "Owner-provided Microsoft Partner Center 'View product identity' screenshot in this conversation, 2026-10-23. The field is transcribed exactly from that screen."
       }
     ]
   },
   "package_family_name": {
     "value": "OkinawaDesktopTools.FolderPrivacyAuditor_j8yefg9jgfh58",
-    "verification_status": "OWNER_PROVIDED_UNVERIFIED",
+    "verification_status": "PARTNER_CENTER_VERIFIED",
     "source_refs": [
       {
-        "type": "user_provided_screenshot",
-        "reference": "Folder Privacy Auditor product identity details screenshot shared earlier in this conversation",
+        "type": "user_provided_partner_center_screenshot",
+        "reference": "Folder Privacy Auditor Partner Center Product Identity screenshot — package_family_name",
         "path": null,
         "ref": null,
         "commit_sha": null,
-        "details": "The screenshot visibly shows this PFN. It is retained as owner-provided evidence only; the screenshot's displayed identity row is browser-translated, and this task does not independently re-open or live-verify the Partner Center record."
-      },
-      {
-        "type": "repository_file",
-        "reference": "Product handoff requires live Partner Center verification for assigned identity values.",
-        "path": "store/STORE_SUBMISSION_HANDOFF_JA.md",
-        "ref": "ui/safe-product-upgrade-20261019",
-        "commit_sha": "defd25ba587f2cfef0a00e283e679d9b9f21d1eb",
-        "details": "Inspected source contains instructions to verify Name and Publisher in Partner Center but no exact assigned Name/Publisher/PublisherDisplayName/PFN/SID values."
+        "details": "Owner-provided Microsoft Partner Center 'View product identity' screenshot in this conversation, 2026-10-23. The field is transcribed exactly from that screen."
       }
     ]
   },
   "package_sid": {
     "value": "S-1-15-2-229571055-273319022-1876511600-168570693-2036010400-3661804863-2317016504",
-    "verification_status": "OWNER_PROVIDED_UNVERIFIED",
+    "verification_status": "PARTNER_CENTER_VERIFIED",
     "source_refs": [
       {
-        "type": "user_provided_screenshot",
-        "reference": "Folder Privacy Auditor product identity details screenshot shared earlier in this conversation",
+        "type": "user_provided_partner_center_screenshot",
+        "reference": "Folder Privacy Auditor Partner Center Product Identity screenshot — package_sid",
         "path": null,
         "ref": null,
         "commit_sha": null,
-        "details": "The screenshot visibly shows this Package SID. It is retained as owner-provided evidence only; this task does not independently re-open or live-verify the Partner Center record."
-      },
-      {
-        "type": "repository_file",
-        "reference": "Product handoff requires live Partner Center verification for assigned identity values.",
-        "path": "store/STORE_SUBMISSION_HANDOFF_JA.md",
-        "ref": "ui/safe-product-upgrade-20261019",
-        "commit_sha": "defd25ba587f2cfef0a00e283e679d9b9f21d1eb",
-        "details": "Inspected source contains instructions to verify Name and Publisher in Partner Center but no exact assigned Name/Publisher/PublisherDisplayName/PFN/SID values."
+        "details": "Owner-provided Microsoft Partner Center 'View product identity' screenshot in this conversation, 2026-10-23. The field is transcribed exactly from that screen."
       }
     ]
   },
