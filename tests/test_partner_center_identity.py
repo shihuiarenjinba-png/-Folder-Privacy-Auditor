@@ -81,10 +81,24 @@ class PartnerCenterIdentityTests(unittest.TestCase):
         self.assertEqual(document["display_name"]["value"], "Folder Privacy Auditor")
         self.assertEqual(document["display_name"]["verification_status"], "SOURCE_FOUND_NOT_LIVE_VERIFIED")
 
-        for name in ("identity_name", "publisher", "publisher_display_name", "package_family_name", "package_sid", "application_version", "package_version"):
-            self.assertIsNone(document[name]["value"], name)
-            self.assertEqual(document[name]["verification_status"], "UNKNOWN", name)
+        self.assertIsNone(document["identity_name"]["value"])
+        self.assertEqual(document["identity_name"]["verification_status"], "UNKNOWN")
+        self.assertIsNone(document["publisher_display_name"]["value"])
+        self.assertEqual(document["publisher_display_name"]["verification_status"], "UNKNOWN")
+        for name in ("identity_name", "publisher_display_name", "application_version", "package_version"):
             self.assertTrue(document[name]["source_refs"], f"{name} must record what source was inspected")
+
+        self.assertEqual(document["publisher"]["value"], "CN=46263F21-A700-41DB-8C9B-114C22FB82FC")
+        self.assertEqual(document["publisher"]["verification_status"], "OWNER_PROVIDED_UNVERIFIED")
+        self.assertEqual(document["package_family_name"]["value"], "OkinawaDesktopTools.FolderPrivacyAuditor_j8yefg9jgfh58")
+        self.assertEqual(document["package_family_name"]["verification_status"], "OWNER_PROVIDED_UNVERIFIED")
+        self.assertEqual(document["package_sid"]["value"], "S-1-15-2-229571055-273319022-1876511600-168570693-2036010400-3661804863-2317016504")
+        self.assertEqual(document["package_sid"]["verification_status"], "OWNER_PROVIDED_UNVERIFIED")
+        for name in ("publisher", "package_family_name", "package_sid"):
+            self.assertTrue(
+                any(ref["type"] == "user_provided_screenshot" for ref in document[name]["source_refs"]),
+                f"{name} must retain screenshot provenance",
+            )
 
         self.assertTrue(any(
             ref["path"] == "store/STORE_SUBMISSION_HANDOFF_JA.md"
