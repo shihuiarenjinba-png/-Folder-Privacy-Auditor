@@ -162,6 +162,16 @@ class PartnerCenterIdentityTests(unittest.TestCase):
         self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
         self.assertIn("FORMAL_MSIX=BLOCKED", result.stdout)
 
+    def test_handoff_uses_the_canonical_builder_interface(self):
+        handoff = (STORE / "STORE_SUBMISSION_HANDOFF_JA.md").read_text(encoding="utf-8")
+        self.assertIn("store/partner-center-identity.json", handoff)
+        self.assertIn("store/identity_manifest.py --validate-only", handoff)
+        self.assertIn("-ExePath", handoff)
+        self.assertIn("-AssetsDirectory", handoff)
+        self.assertNotIn("Identity・Publisher・EXE・画像のパスを渡す", handoff)
+        self.assertNotIn("-IdentityName", handoff)
+        self.assertNotIn("-PublisherDisplayName", handoff)
+
     def test_builder_uses_canonical_json_not_identity_command_line_overrides(self):
         builder = BUILDER_PATH.read_text(encoding="utf-8")
         parameter_block = builder.split("$ErrorActionPreference", 1)[0]
