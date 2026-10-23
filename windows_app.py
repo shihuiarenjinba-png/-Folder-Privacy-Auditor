@@ -343,6 +343,7 @@ class App:
         self.root = root
         self.root.title("Folder Privacy Auditor — Windows")
         self.root.geometry("960x650")
+        self.root.minsize(820, 540)
         self.folder: Path | None = None
         self.records: list[dict] = []
         self.busy = False
@@ -385,7 +386,7 @@ class App:
             self.filter_status.set("ALL")
             self.status_text.set("Choose Run audit to begin. Results will be read-only.")
             self.listbox.delete(0, END)
-            self.listbox.insert(END, f"Folder: {self.folder}")
+            self.listbox.insert(END, f"Folder: {self.folder.name}")
 
     def audit(self):
         if self.busy:
@@ -447,7 +448,13 @@ class App:
         self.listbox.insert(END, "---")
         for record in visible[:2000]:
             flags = ", ".join(record["notes"]) or "No candidate in checked portion"
-            self.listbox.insert(END, f"[{record['status']}] {record['path']} "
+            shown_path = record["path"]
+            if self.folder is not None:
+                try:
+                    shown_path = str(Path(record["path"]).relative_to(self.folder))
+                except (ValueError, OSError):
+                    shown_path = Path(record["path"]).name
+            self.listbox.insert(END, f"[{record['status']}] {shown_path} "
                 f"| {record['bytes']:,} bytes | {flags}")
             if record["unchecked"]:
                 self.listbox.insert(END, "    Not checked: " + ", ".join(record["unchecked"]))
