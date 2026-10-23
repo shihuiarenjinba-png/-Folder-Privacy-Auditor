@@ -11,6 +11,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 $Root = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
+$ExpectedBranch = 'codex/store-p1-folder-privacy-20261023'
 $IdentityPath = Join-Path $PSScriptRoot 'partner-center-identity.json'
 $IdentityHelper = Join-Path $PSScriptRoot 'identity_manifest.py'
 if (-not (Test-Path -LiteralPath $IdentityPath -PathType Leaf)) {
@@ -19,6 +20,26 @@ if (-not (Test-Path -LiteralPath $IdentityPath -PathType Leaf)) {
 if (-not (Test-Path -LiteralPath $IdentityHelper -PathType Leaf)) {
     throw "Identity manifest helper is missing: $IdentityHelper"
 }
+
+function Invoke-GitText {
+    param([string[]]$GitArguments)
+    $Output = & git @GitArguments 2>&1
+    if ($LASTEXITCODE -ne 0) { throw "Git command failed (exit $LASTEXITCODE): git $($GitArguments -join ' '); output: $Output" }
+    return ($Output | Out-String).Trim()
+}
+Set-Location -LiteralPath $Root
+$RemoteUrl = Invoke-GitText -GitArguments @('remote','get-url','origin')
+if ($RemoteUrl -notmatch '(?i)github[.]com[:/]shihuiarenjinba-png/-Folder-Privacy-Auditor(?:[.]git)?$') {
+    throw 'Wrong origin repository; stopped before validation or packaging.'
+}
+Invoke-GitText -GitArguments @('fetch','origin') | Out-Null
+$Branch = Invoke-GitText -GitArguments @('branch','--show-current')
+$SourceSha = Invoke-GitText -GitArguments @('rev-parse','HEAD')
+$RemoteSha = Invoke-GitText -GitArguments @('rev-parse',('origin/' + $ExpectedBranch))
+$DirtyState = Invoke-GitText -GitArguments @('status','--porcelain','--untracked-files=all')
+if ($Branch -cne $ExpectedBranch) { throw "Wrong working branch: $Branch" }
+if ($SourceSha -notmatch '^[0-9a-f]{40}$' -or $RemoteSha -cne $SourceSha) { throw 'Local and remote HEAD must be identical.' }
+if ($DirtyState) { throw 'Uncommitted or untracked changes exist; stopped before validation or packaging.' }
 
 $PythonCommand = Get-Command python.exe -ErrorAction SilentlyContinue
 if ($null -eq $PythonCommand) {
@@ -108,6 +129,7 @@ $PackageProducedByThisRun = $false
 try {
     New-Item -ItemType Directory -Path $Stage -Force | Out-Null
     Copy-Item -LiteralPath $ExePath -Destination (Join-Path $Stage $AppExe) -ErrorAction Stop
+    Set-Content -LiteralPath (Join-Path $Stage 'SOURCE_GIT_COMMIT.txt') -Value $SourceSha -Encoding ASCII
     $StageAssets = Join-Path $Stage 'Assets'
     New-Item -ItemType Directory -Path $StageAssets -Force | Out-Null
 
@@ -203,6 +225,7 @@ try {
     Write-Host "MSIX_CANDIDATE=$PackagePath"
     Write-Host "MSIX_SHA256=$PackageHash"
     Write-Host "SOURCE_EXE_SHA256=$OriginalHash"
+    Write-Host "SOURCE_SHA=$SourceSha"
     Write-Host "MANIFEST_IDENTITY_MATCH=PASS"
     Write-Host 'PACKAGE_SIGNATURE=NOT_ADDED'
     Write-Host 'STORE_SUBMISSION=NOT_PERFORMED'
