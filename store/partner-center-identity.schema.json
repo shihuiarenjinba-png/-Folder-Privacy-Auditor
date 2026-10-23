@@ -1,0 +1,848 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Partner Center Identity configuration (shared schema v2)",
+  "description": "Shared schema for product identity source-of-truth files. v2 explicitly includes display_name and its verification status, and separates application_version from package_version.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "product_key",
+    "store_id",
+    "display_name",
+    "identity_name",
+    "publisher",
+    "publisher_display_name",
+    "package_family_name",
+    "package_sid",
+    "application_version",
+    "package_version"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 2
+    },
+    "product_key": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "store_id": {
+      "type": "object",
+      "required": [
+        "value",
+        "verification_status",
+        "source_refs"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "verification_status": {
+          "type": "string",
+          "enum": [
+            "UNKNOWN",
+            "OWNER_PROVIDED_UNVERIFIED",
+            "SOURCE_FOUND_NOT_LIVE_VERIFIED",
+            "PARTNER_CENTER_VERIFIED",
+            "OWNER_APPROVED"
+          ]
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "type",
+              "reference",
+              "path",
+              "ref",
+              "commit_sha",
+              "details"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "type": "string",
+                "minLength": 1
+              },
+              "reference": {
+                "type": "string",
+                "minLength": 1
+              },
+              "path": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "ref": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "commit_sha": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "details": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "display_name": {
+      "type": "object",
+      "required": [
+        "value",
+        "verification_status",
+        "source_refs"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "verification_status": {
+          "type": "string",
+          "enum": [
+            "UNKNOWN",
+            "OWNER_PROVIDED_UNVERIFIED",
+            "SOURCE_FOUND_NOT_LIVE_VERIFIED",
+            "PARTNER_CENTER_VERIFIED",
+            "OWNER_APPROVED"
+          ]
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "type",
+              "reference",
+              "path",
+              "ref",
+              "commit_sha",
+              "details"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "type": "string",
+                "minLength": 1
+              },
+              "reference": {
+                "type": "string",
+                "minLength": 1
+              },
+              "path": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "ref": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "commit_sha": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "details": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "identity_name": {
+      "type": "object",
+      "required": [
+        "value",
+        "verification_status",
+        "source_refs"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "verification_status": {
+          "type": "string",
+          "enum": [
+            "UNKNOWN",
+            "OWNER_PROVIDED_UNVERIFIED",
+            "SOURCE_FOUND_NOT_LIVE_VERIFIED",
+            "PARTNER_CENTER_VERIFIED",
+            "OWNER_APPROVED"
+          ]
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "type",
+              "reference",
+              "path",
+              "ref",
+              "commit_sha",
+              "details"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "type": "string",
+                "minLength": 1
+              },
+              "reference": {
+                "type": "string",
+                "minLength": 1
+              },
+              "path": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "ref": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "commit_sha": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "details": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "publisher": {
+      "type": "object",
+      "required": [
+        "value",
+        "verification_status",
+        "source_refs"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "verification_status": {
+          "type": "string",
+          "enum": [
+            "UNKNOWN",
+            "OWNER_PROVIDED_UNVERIFIED",
+            "SOURCE_FOUND_NOT_LIVE_VERIFIED",
+            "PARTNER_CENTER_VERIFIED",
+            "OWNER_APPROVED"
+          ]
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "type",
+              "reference",
+              "path",
+              "ref",
+              "commit_sha",
+              "details"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "type": "string",
+                "minLength": 1
+              },
+              "reference": {
+                "type": "string",
+                "minLength": 1
+              },
+              "path": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "ref": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "commit_sha": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "details": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "publisher_display_name": {
+      "type": "object",
+      "required": [
+        "value",
+        "verification_status",
+        "source_refs"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "verification_status": {
+          "type": "string",
+          "enum": [
+            "UNKNOWN",
+            "OWNER_PROVIDED_UNVERIFIED",
+            "SOURCE_FOUND_NOT_LIVE_VERIFIED",
+            "PARTNER_CENTER_VERIFIED",
+            "OWNER_APPROVED"
+          ]
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "type",
+              "reference",
+              "path",
+              "ref",
+              "commit_sha",
+              "details"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "type": "string",
+                "minLength": 1
+              },
+              "reference": {
+                "type": "string",
+                "minLength": 1
+              },
+              "path": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "ref": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "commit_sha": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "details": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "package_family_name": {
+      "type": "object",
+      "required": [
+        "value",
+        "verification_status",
+        "source_refs"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "verification_status": {
+          "type": "string",
+          "enum": [
+            "UNKNOWN",
+            "OWNER_PROVIDED_UNVERIFIED",
+            "SOURCE_FOUND_NOT_LIVE_VERIFIED",
+            "PARTNER_CENTER_VERIFIED",
+            "OWNER_APPROVED"
+          ]
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "type",
+              "reference",
+              "path",
+              "ref",
+              "commit_sha",
+              "details"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "type": "string",
+                "minLength": 1
+              },
+              "reference": {
+                "type": "string",
+                "minLength": 1
+              },
+              "path": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "ref": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "commit_sha": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "details": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "package_sid": {
+      "type": "object",
+      "required": [
+        "value",
+        "verification_status",
+        "source_refs"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "verification_status": {
+          "type": "string",
+          "enum": [
+            "UNKNOWN",
+            "OWNER_PROVIDED_UNVERIFIED",
+            "SOURCE_FOUND_NOT_LIVE_VERIFIED",
+            "PARTNER_CENTER_VERIFIED",
+            "OWNER_APPROVED"
+          ]
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "type",
+              "reference",
+              "path",
+              "ref",
+              "commit_sha",
+              "details"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "type": "string",
+                "minLength": 1
+              },
+              "reference": {
+                "type": "string",
+                "minLength": 1
+              },
+              "path": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "ref": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "commit_sha": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "details": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "application_version": {
+      "type": "object",
+      "required": [
+        "value",
+        "verification_status",
+        "source_refs"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "verification_status": {
+          "type": "string",
+          "enum": [
+            "UNKNOWN",
+            "OWNER_PROVIDED_UNVERIFIED",
+            "SOURCE_FOUND_NOT_LIVE_VERIFIED",
+            "PARTNER_CENTER_VERIFIED",
+            "OWNER_APPROVED"
+          ]
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "type",
+              "reference",
+              "path",
+              "ref",
+              "commit_sha",
+              "details"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "type": "string",
+                "minLength": 1
+              },
+              "reference": {
+                "type": "string",
+                "minLength": 1
+              },
+              "path": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "ref": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "commit_sha": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "details": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "package_version": {
+      "type": "object",
+      "required": [
+        "value",
+        "verification_status",
+        "source_refs"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "verification_status": {
+          "type": "string",
+          "enum": [
+            "UNKNOWN",
+            "OWNER_PROVIDED_UNVERIFIED",
+            "SOURCE_FOUND_NOT_LIVE_VERIFIED",
+            "PARTNER_CENTER_VERIFIED",
+            "OWNER_APPROVED"
+          ]
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "type",
+              "reference",
+              "path",
+              "ref",
+              "commit_sha",
+              "details"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "type": "string",
+                "minLength": 1
+              },
+              "reference": {
+                "type": "string",
+                "minLength": 1
+              },
+              "path": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "ref": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "commit_sha": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "details": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
