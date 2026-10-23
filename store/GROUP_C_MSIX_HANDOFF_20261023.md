@@ -1,3 +1,20 @@
+## 2026-10-23 owner decision: Microsoft Store only, unsigned MSIX, minimum viable submission
+
+The owner explicitly does **not** want to buy a code-signing certificate, sign locally, or distribute outside Microsoft Store. For this product, **signing / PFX / HSM / SignTool / external sideload distribution is OUT OF SCOPE and MUST NOT block preparation**. Microsoft's Store MSIX publishing process supplies the Store certificate after certification. The existing unsigned candidate builder is the selected packaging route; keep all existing application/build scripts intact.
+
+**Minimum path, in order:**
+1. Confirm own product's Partner Center reserved listing, Store ID and exact package Identity Name, Publisher, PublisherDisplayName, reserved DisplayName and approved next `A.B.C.0` version. Do not invent values; existing user-confirmed Store IDs are not independently live-verified.
+2. Confirm genuine product logos and required localization, correct architecture and EXE payload. Perform source regression, portable EXE Windows real-input/output smoke and UI check. Use only genuinely run logs, not 0-step Actions status.
+3. Produce **unsigned x64 MSIX** with existing product-specific builder only when its hard configuration checks pass. Unpack and inspect manifest, embedded EXE/resources and SHA-256. Do not mark candidate ready if package cannot be generated or validated.
+4. Prepare minimum truthful Store listing: app name, brief feature description/limitations, actual Windows screenshots, product logo, support contact, privacy policy URL, category, age rating, price/markets and dependency licenses/notices. Privacy claims must reflect tested actual behavior.
+5. Have the code owner check the draft package on Partner Center **Packages** page: match identity/version to the intended product, fix hard validation errors, record draft upload result. Upload, submit, certification and publish are distinct; **no certification submission or publication in this work without explicit authorization**.
+
+**Excluded:** purchasing a signing certificate, signing a package, publishing a sideload installer, pretending an unsigned MSIX was successfully installed on a normal machine, and demanding WACK as a substitute for actual Store validation. Windows installation/update/uninstall checks can be done after a Store-signed deliverable is available. Until then, use real EXE smoke, MSIX structure/manifest/contents and Partner Center's package validation as evidence, without claiming unperformed lifecycle tests passed.
+
+Official reference: https://learn.microsoft.com/en-us/windows/apps/publish/publish-your-app/msix/app-package-requirements
+
+---
+
 # Group C | MSIX candidate handoff | 2026-10-23
 
 **Product:** `-Folder-Privacy-Auditor`  
@@ -19,7 +36,7 @@
 3. Product-owned `StoreLogo.png` (50x50), `Square44x44Logo.png` (44x44) and `Square150x150Logo.png` (150x150). No invented/mock assets.
 4. Windows Actions regression and portable EXE SHA-256 with **actual runner, steps, logs, exit codes and artifact**; source SHA must match the intended release.
 5. Run the existing `store/build-msix.ps1` only with verified exact values, approved EXE and assets, on a clean Windows x64 environment with Windows SDK MakeAppx. Preserve previous artifacts.
-6. Unpack and inspect the actual MSIX AppxManifest.xml (Identity Name/Publisher, x64, Version, Properties DisplayName, VisualElements DisplayName, PublisherDisplayName), compare EXE hashes and publish exact MSIX SHA-256. Test a properly signed build's install/launch/real data/write/update/uninstall separately. Check Store upload errors separately. **No upload, certification submission or publication without explicit owner approval.**
+6. Unpack and inspect the actual MSIX AppxManifest.xml (Identity Name/Publisher, x64, Version, Properties DisplayName, VisualElements DisplayName, PublisherDisplayName), compare EXE hashes and publish exact MSIX SHA-256. Test portable EXE real data/write and UI separately. Signed MSIX install/update/uninstall is not part of this unsigned-Store candidate task. Check Store upload errors separately. **No upload, certification submission or publication without explicit owner approval.**
 
 ## Product-specific constraints
 Canonical schema v2 exists at store/partner-center-identity.json. The Store ID, Publisher, PFN and SID carry OWNER_PROVIDED_UNVERIFIED evidence, not Partner Center live verification. Identity Name, PublisherDisplayName and approved package version remain UNKNOWN. Use -ValidateOnly on the existing builder; do not bypass identity_manifest.py.
