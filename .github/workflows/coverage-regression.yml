@@ -1,7 +1,10 @@
 name: Folder privacy coverage regression
 on:
   push:
-    branches: [improve/read-only-coverage-20261018, 'ui/safe-product-upgrade-20261019']
+    branches:
+      - improve/read-only-coverage-20261018
+      - ui/safe-product-upgrade-20261019
+      - fix/store-identity-json-20261023
   workflow_dispatch:
 permissions:
   contents: read
@@ -15,7 +18,9 @@ jobs:
         with:
           python-version: "3.12"
       - name: Syntax
-        run: python -m compileall -q windows_app.py i18n.py smoke_test.py tests
+        run: python -m compileall -q windows_app.py i18n.py smoke_test.py tests store/identity_manifest.py
+      - name: Identity JSON structure and release-gate status
+        run: python store/identity_manifest.py --validate-only
       - name: Original regression
         run: python smoke_test.py
       - name: Read-only report and traversal regression
