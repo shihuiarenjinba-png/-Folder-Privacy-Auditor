@@ -113,7 +113,7 @@ def validate_identity_document(document: Any) -> list[str]:
         status = field.get("verification_status")
         if value is not None and (not isinstance(value, str) or not value.strip()):
             errors.append(f"{name}.value must be a non-empty string or null.")
-        if status not in VERIFICATION_STATUSES:
+        if not isinstance(status, str) or status not in VERIFICATION_STATUSES:
             errors.append(f"{name}.verification_status is not an allowed status.")
         elif value is None and status != "UNKNOWN":
             errors.append(f"{name}: a null value must have verification_status UNKNOWN.")
@@ -145,22 +145,22 @@ def validate_identity_document(document: Any) -> list[str]:
 
     if isinstance(document.get("store_id"), dict):
         store_id = document["store_id"].get("value")
-        if store_id is not None and not STORE_ID_RE.fullmatch(store_id):
+        if isinstance(store_id, str) and not STORE_ID_RE.fullmatch(store_id):
             errors.append("store_id.value must contain 12 uppercase ASCII letters or digits.")
 
     if isinstance(document.get("identity_name"), dict):
         identity_name = document["identity_name"].get("value")
-        if identity_name is not None and not IDENTITY_NAME_RE.fullmatch(identity_name):
+        if isinstance(identity_name, str) and not IDENTITY_NAME_RE.fullmatch(identity_name):
             errors.append("identity_name.value does not meet the conservative package-name syntax check.")
 
     if isinstance(document.get("publisher"), dict):
         publisher = document["publisher"].get("value")
-        if publisher is not None and not publisher.startswith("CN="):
+        if isinstance(publisher, str) and not publisher.startswith("CN="):
             errors.append("publisher.value must be the exact Publisher distinguished name beginning with CN=.")
 
     if isinstance(document.get("package_sid"), dict):
         package_sid = document["package_sid"].get("value")
-        if package_sid is not None and not re.fullmatch(r"S-1-15-2(?:-\d+)+", package_sid):
+        if isinstance(package_sid, str) and not re.fullmatch(r"S-1-15-2(?:-\d+)+", package_sid):
             errors.append("package_sid.value does not match the expected package SID notation.")
 
     if isinstance(document.get("package_version"), dict):
@@ -172,8 +172,6 @@ def validate_identity_document(document: Any) -> list[str]:
                 validate_package_version(version)
             except ValueError as exc:
                 errors.append(f"package_version: {exc}")
-            if status != "OWNER_APPROVED":
-                errors.append("A non-null package_version must have verification_status OWNER_APPROVED.")
 
     return errors
 
