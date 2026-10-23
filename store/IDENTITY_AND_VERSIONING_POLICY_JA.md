@@ -17,10 +17,10 @@
 |---|---|---|---|
 | `store_id` | `9PKMCT98XQF5` | `OWNER_PROVIDED_UNVERIFIED` | Partner Centerの実画面と照合するまで正式ビルドをブロック |
 | `display_name` | `Folder Privacy Auditor` | `SOURCE_FOUND_NOT_LIVE_VERIFIED` | 文書に記録された表示名。ライブの登録値と照合するまでブロック |
-| `identity_name` | `null` | `UNKNOWN` | 必須Identity値が不明のためブロック |
-| `publisher` | `null` | `UNKNOWN` | Partner Centerに登録された正確なDNを得るまでブロック |
-| `publisher_display_name` | `null` | `UNKNOWN` | 正確な登録値を得るまでブロック |
-| `package_family_name` / `package_sid` | `null` | `UNKNOWN` | 現行のPackage Manifest生成には直接書かない。正当な出典が確認できた場合のみ記録 |
+| `identity_name` | `null` | `UNKNOWN` | 会話内の画面表示は翻訳されているため正式なASCII文字列を断定できず、必須値不明としてブロック |
+| `publisher` | `CN=46263F21-A700-41DB-8C9B-114C22FB82FC` | `OWNER_PROVIDED_UNVERIFIED` | 会話内の提供スクリーンショットに見える値。正本のソース記録には保存したが、今回のライブ照合は未実施なので正式ビルドをブロック |
+| `publisher_display_name` | `null` | `UNKNOWN` | 画面の表示名は翻訳されている可能性があり、正確な登録値を得るまでブロック |
+| `package_family_name` / `package_sid` | スクリーンショットから読み取った値 | `OWNER_PROVIDED_UNVERIFIED` | 会話内の製品Identity画面を出典として記録。ライブ照合は未実施。現行Manifest生成では直接使用しない |
 | `application_version` | `null` | `UNKNOWN` | 内部アプリの版。パッケージ版から推測しない |
 | `package_version` | `null` | `UNKNOWN` | 公開用MSIXの版。所有者の明示承認まで生成をブロック |
 
