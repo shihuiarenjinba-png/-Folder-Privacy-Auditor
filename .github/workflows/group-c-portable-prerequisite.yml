@@ -1,0 +1,61 @@
+# Isolated Group C EXE evidence pipeline; NOT a Store release and NOT an MSIX.
+# Only a fresh GitHub-hosted Windows checkout is altered by the existing builder.
+name: Group C portable prerequisite
+on:
+  push:
+    branches: ['codex/store-p1-folder-privacy-20261023']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build-portable:
+    runs-on: windows-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile Python tests
+        shell: pwsh
+        run: python -m compileall -q tests
+      - name: Use existing Windows portable builder unchanged
+        shell: powershell
+        run: |
+          & .\build-windows-portable.ps1
+          if ($LASTEXITCODE -ne 0) { throw "Portable builder reported failure: $LASTEXITCODE" }
+      - name: Verify EXE and regressions
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = Join-Path $PWD 'dist/FolderPrivacyAuditor.exe'
+          if (-not (Test-Path -LiteralPath $exe -PathType Leaf)) { throw "Expected EXE missing: $exe" }
+          $python = Join-Path $PWD '.venv-build/Scripts/python.exe'
+          if (-not (Test-Path -LiteralPath $python -PathType Leaf)) { throw "Build venv missing: $python" }
+          & $python -m unittest discover -s tests -p 'test_*.py' -v
+          if ($LASTEXITCODE -ne 0) { throw "Regression suite failed: $LASTEXITCODE" }
+          $hash = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash
+          $evidence = [ordered]@{
+            source_commit = $env:GITHUB_SHA
+            source_branch = $env:GITHUB_REF_NAME
+            exe_name = 'FolderPrivacyAuditor.exe'
+            exe_sha256 = $hash
+            package_type = 'PORTABLE_EXE_PREREQUISITE_ONLY'
+            msix = 'NOT_CREATED'
+            partner_center = 'NOT_ACCESSED'
+            release = 'HOLD'
+          }
+          $evidence | ConvertTo-Json -Depth 4 | Out-File -FilePath dist/group-c-exe-evidence.json -Encoding utf8
+          Write-Host "EXE_SHA256=$hash"
+      - name: Preserve isolated build evidence
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: group-c-prerequisite-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            dist/FolderPrivacyAuditor.exe
+            dist/group-c-exe-evidence.json
+          if-no-files-found: error
+          retention-days: 14
