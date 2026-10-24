@@ -108,8 +108,12 @@ def _patch():
 
 class LanguageController:
     def __init__(self,root):
-        self.root=root; self.original_title=root.title(); self._snapshot(root)
-        f=tk.Frame(root,padx=12,pady=6); f.pack(fill="x"); self.button=tk.Button(f,width=12,command=self.toggle); self.button.pack(side="right")
+        self.root=root; self.original_title=root.title(); existing=list(root.winfo_children()); self._snapshot(root)
+        f=tk.Frame(root,padx=12,pady=5)
+        if existing: f.pack(fill="x", before=existing[0])
+        else: f.pack(fill="x")
+        tk.Label(f,text="Language / 言語").pack(side="right",padx=(0,8))
+        self.button=tk.Button(f,width=10,command=self.toggle); self.button.pack(side="right")
         _CONTROLLERS.append(self); self.refresh()
     def _snapshot(self,w):
         try: w._i18n_original_text=w.cget("text")
