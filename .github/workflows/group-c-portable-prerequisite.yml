@@ -49,6 +49,25 @@ jobs:
           }
           $evidence | ConvertTo-Json -Depth 4 | Out-File -FilePath dist/group-c-exe-evidence.json -Encoding utf8
           Write-Host "EXE_SHA256=$hash"
+      - name: Verify packaged Windows EXE self-test
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = Join-Path $PWD 'dist/FolderPrivacyAuditor.exe'
+          if (-not (Test-Path -LiteralPath $exe -PathType Leaf)) { throw 'Packaged EXE not found' }
+          $proc = Start-Process -FilePath $exe -ArgumentList '--self-test' -PassThru
+          try {
+            if (-not $proc.WaitForExit(90000)) {
+              Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+              throw 'Packaged EXE self-test timed out'
+            }
+            if ($proc.ExitCode -ne 0) { throw "Packaged EXE self-test failed: $($proc.ExitCode)" }
+            Write-Host 'PACKAGED_EXE_SELF_TEST=PASS'
+          } finally {
+            if (-not $proc.HasExited) {
+              Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+            }
+          }
       - name: Preserve isolated build evidence
         uses: actions/upload-artifact@v4
         if: success()
