@@ -60,7 +60,7 @@ jobs:
               (root / "same-A.txt").write_bytes(b"same content " * 1024)
               (root / "different.txt").write_bytes(b"different content " * 1024)
               (root / "same-B.txt").write_bytes(b"same content " * 1024)
-              report = scan(root, report_directory=Path(temp) / "reports")
+              report = scan(root, report_directory=Path(temp) / "reports", cli_path=Path.cwd() / "vendor-bin" / "czkawka_cli.exe")
               payload = json.loads(report.read_text(encoding="utf-8-sig"))
               txt = json.dumps(payload, ensure_ascii=False)
               assert "same-A.txt" in txt and "same-B.txt" in txt, "Matching files absent from Czkawka output"
