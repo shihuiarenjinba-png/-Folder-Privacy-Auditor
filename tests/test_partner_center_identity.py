@@ -144,6 +144,19 @@ class PartnerCenterIdentityTests(unittest.TestCase):
             self.assertEqual(visual.attrib["DisplayName"], document["display_name"]["value"])
             self.assertNotIn(document["store_id"]["value"], output.read_text(encoding="utf-8"))
 
+    def test_qa_renderer_uses_explicit_version_without_authorizing_formal_release(self):
+        document = complete_synthetic_document()
+        document["package_version"] = synthetic_field(None, "UNKNOWN")
+        self.assertTrue(release_blockers(document))
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp) / "AppxManifest.xml"
+            render_manifest(document, output, qa_version="1.0.77.0")
+            root = ET.parse(output).getroot()
+            identity = root.find(f"{{{FOUNDATION_NS}}}Identity")
+            self.assertEqual(identity.attrib["Version"], "1.0.77.0")
+            self.assertIsNone(document["package_version"]["value"])
+            self.assertEqual(document["package_version"]["verification_status"], "UNKNOWN")
+
     def test_renderer_refuses_the_actual_unverified_canonical_document(self):
         document = load_identity()
         with tempfile.TemporaryDirectory() as tmp:
