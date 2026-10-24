@@ -18,6 +18,24 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Validate PowerShell syntax before build
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $failures = @()
+          Get-ChildItem -LiteralPath $PWD -Recurse -File -Filter '*.ps1' | ForEach-Object {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$errors) | Out-Null
+            foreach ($err in @($errors)) {
+              $failures += "$($_.FullName):$($err.Extent.StartLineNumber): $($err.Message)"
+            }
+          }
+          if ($failures.Count -gt 0) {
+            $failures | ForEach-Object { Write-Error $_ }
+            throw "PowerShell syntax validation failed with $($failures.Count) error(s)."
+          }
+          Write-Host 'POWERSHELL_SYNTAX=PASS'
       - name: Compile Python tests
         shell: pwsh
         run: python -m compileall -q tests
