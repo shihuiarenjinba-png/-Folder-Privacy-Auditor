@@ -3,7 +3,7 @@
 name: Group C portable prerequisite
 on:
   push:
-    branches: ['codex/store-p1-folder-privacy-20261023']
+    branches: ['codex/store-p1-folder-privacy-20261023', 'codex/folder-privacy-auditor-upgrade-20261024']
   workflow_dispatch:
 permissions:
   contents: read
@@ -44,6 +44,31 @@ jobs:
         run: |
           & .\build-windows-portable.ps1
           if ($LASTEXITCODE -ne 0) { throw "Portable builder reported failure: $LASTEXITCODE" }
+      - name: Verify Czkawka Core live duplicate scan (non-destructive)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $py = Join-Path $PWD '.venv-build/Scripts/python.exe'
+          @'
+          import json
+          import tempfile
+          from pathlib import Path
+          from czkawka_bridge import scan
+          with tempfile.TemporaryDirectory() as temp:
+              root = Path(temp) / "日本語-input"
+              root.mkdir()
+              (root / "same-A.txt").write_bytes(b"same content " * 1024)
+              (root / "different.txt").write_bytes(b"different content " * 1024)
+              (root / "same-B.txt").write_bytes(b"same content " * 1024)
+              report = scan(root, report_directory=Path(temp) / "reports", cli_path=Path.cwd() / "vendor-bin" / "czkawka_cli.exe")
+              payload = json.loads(report.read_text(encoding="utf-8-sig"))
+              txt = json.dumps(payload, ensure_ascii=False)
+              assert "same-A.txt" in txt and "same-B.txt" in txt, "Matching files absent from Czkawka output"
+              assert "different.txt" not in txt, "Nonduplicate appeared in duplicate result"
+              assert (root / "same-A.txt").is_file() and (root / "same-B.txt").is_file()
+              print("CZKAWKA_REAL_DUPLICATE_SCAN=PASS (unmodified inputs)")
+          '@ | & $py -
+          if ($LASTEXITCODE -ne 0) { throw 'Czkawka live integration test failed' }
       - name: Verify EXE and regressions
         shell: pwsh
         run: |
