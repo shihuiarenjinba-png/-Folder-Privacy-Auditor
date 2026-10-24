@@ -276,9 +276,9 @@ def verify_manifest_identity(manifest_path: Path, document: dict[str, Any]) -> N
     if identity is None or properties is None:
         raise ValueError("Generated manifest is missing Identity or Properties.")
     expected_identity = {
-        "Name": manifest_document["identity_name"]["value"],
-        "Publisher": manifest_document["publisher"]["value"],
-        "Version": manifest_document["package_version"]["value"],
+        "Name": document["identity_name"]["value"],
+        "Publisher": document["publisher"]["value"],
+        "Version": document["package_version"]["value"],
         "ProcessorArchitecture": "x64",
     }
     for key, expected in expected_identity.items():
@@ -286,8 +286,8 @@ def verify_manifest_identity(manifest_path: Path, document: dict[str, Any]) -> N
             raise ValueError(f"Generated manifest Identity.{key} doesn't match the canonical JSON.")
 
     expected_properties = {
-        "DisplayName": manifest_document["display_name"]["value"],
-        "PublisherDisplayName": manifest_document["publisher_display_name"]["value"],
+        "DisplayName": document["display_name"]["value"],
+        "PublisherDisplayName": document["publisher_display_name"]["value"],
     }
     for key, expected in expected_properties.items():
         node = properties.find(_q(FOUNDATION_NS, key))
@@ -295,7 +295,7 @@ def verify_manifest_identity(manifest_path: Path, document: dict[str, Any]) -> N
             raise ValueError(f"Generated manifest Properties/{key} doesn't match the canonical JSON.")
 
     visual = root.find(f".//{_q(UAP_NS, 'VisualElements')}")
-    if visual is None or visual.attrib.get("DisplayName") != manifest_document["display_name"]["value"]:
+    if visual is None or visual.attrib.get("DisplayName") != document["display_name"]["value"]:
         raise ValueError("Generated manifest VisualElements.DisplayName doesn't match the canonical JSON.")
 
 
@@ -323,7 +323,7 @@ def render_manifest(document: dict[str, Any], output_path: Path, *, qa_version: 
         if blockers:
             raise ValueError("QA manifest generation blocked:\n- " + "\n- ".join(blockers))
         manifest_document = json.loads(json.dumps(document))
-        manifest_manifest_document["package_version"]["value"] = qa_version
+        manifest_document["package_version"]["value"] = qa_version
         manifest_document["package_version"]["verification_status"] = "OWNER_APPROVED"
     output_path = Path(output_path)
     if output_path.exists():
