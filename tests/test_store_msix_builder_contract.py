@@ -22,6 +22,9 @@ class StoreMsixBuilderContractTests(unittest.TestCase):
         for token in ("ProcessorArchitecture", "PublisherDisplayName", "VisualElements"):
             self.assertIn(token, SCRIPT)
 
+    def test_qa_unsigned_label_is_explicit(self):
+        self.assertIn("QA_UNSIGNED", SCRIPT)
+
     def test_no_implicit_store_version_default(self):
         self.assertNotIn("$Version = '1.0.0.0'", SCRIPT)
         self.assertNotIn('$Version = "1.0.0.0"', SCRIPT)
