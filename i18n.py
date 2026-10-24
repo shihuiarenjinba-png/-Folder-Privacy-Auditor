@@ -15,6 +15,7 @@ TEXTS = {
     "3  Save report (CSV + JSON)": ("3  Save report (CSV + JSON)", "3  レポートを保存 (CSV + JSON)"),
     "① Choose folder  →  ② Run audit  →  ③ Review flagged items  →  ④ Save report": ("① Choose folder  →  ② Run audit  →  ③ Review flagged items  →  ④ Save report", "① フォルダを選択  →  ② 監査を実行  →  ③ 要確認項目を見る  →  ④ レポートを保存"),
     "Folder Privacy Auditor": ("Folder Privacy Auditor", "フォルダプライバシー監査"),
+    "4  Diagnostics": ("4  Diagnostics", "4  重複・容量診断"),
     "Folder Privacy Auditor — Windows": ("Folder Privacy Auditor — Windows", "フォルダプライバシー監査 — Windows"),
     "Choose folder → inspect → export report. Read-only; never deletes anything.": ("Choose folder → inspect → export report. Read-only; never deletes anything.", "フォルダ選択 → 点検 → レポート出力。読み取り専用で削除はしません。"),
     "Run the audit before exporting.": ("Run the audit before exporting.", "先にフォルダの監査を実行してください。"),
