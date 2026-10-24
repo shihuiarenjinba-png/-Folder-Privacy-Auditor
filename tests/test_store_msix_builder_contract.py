@@ -19,7 +19,8 @@ class StoreMsixBuilderContractTests(unittest.TestCase):
         self.assertIn("SOURCE_GIT_COMMIT.txt", SCRIPT)
 
     def test_manifest_contract_is_checked(self):
-        for token in ("ProcessorArchitecture", "PublisherDisplayName", "VisualElements"):
+        for token in ("ProcessorArchitecture", "PublisherDisplayName", "VisualElements",
+                      "TargetDeviceFamily", "MinVersion", "Application Id/Executable"):
             self.assertIn(token, SCRIPT)
 
     def test_qa_unsigned_label_is_explicit(self):
