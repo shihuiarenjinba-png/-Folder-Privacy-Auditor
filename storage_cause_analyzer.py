@@ -51,7 +51,7 @@ def classify(parts: tuple[str, ...]) -> str:
 
 
 def analyze(root_dir: str | Path, reports_dir: str | Path,
-            baseline_file: str | Path | None = None) -> Path:
+            baseline_file: str | Path | None = None, cancel_event=None) -> Path:
     requested = Path(root_dir).expanduser()
     if reparse(requested):
         raise ValueError("Root symlink/reparse location not supported")
@@ -71,6 +71,8 @@ def analyze(root_dir: str | Path, reports_dir: str | Path,
     truncated = False
     stack: list[Path] = [root]
     while stack and not truncated:
+        if cancel_event is not None and cancel_event.is_set():
+            raise RuntimeError('Scan cancelled')
         folder = stack.pop()
         try:
             with os.scandir(folder) as it:
@@ -79,6 +81,8 @@ def analyze(root_dir: str | Path, reports_dir: str | Path,
             errors.append({"location": str(folder.relative_to(root)), "error": type(exc).__name__})
             continue
         for entry in entries:
+            if cancel_event is not None and cancel_event.is_set():
+                raise RuntimeError('Scan cancelled')
             path = Path(entry.path)
             rel = path.relative_to(root)
             try:
