@@ -137,6 +137,58 @@ jobs:
           path: ${{ runner.temp }}/group-c-msix-preflight.json
           if-no-files-found: error
           retention-days: 14
+      - name: Download verified portable EXE for QA MSIX
+        uses: actions/download-artifact@v4
+        with:
+          name: group-c-prerequisite-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/group-c-qa-exe
+
+      - name: Generate QA-only placeholder package logos
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $assets = Join-Path $env:RUNNER_TEMP 'group-c-qa-assets'
+          New-Item -ItemType Directory -Path $assets -Force | Out-Null
+          Add-Type -AssemblyName System.Drawing
+          foreach ($spec in @(
+            @('StoreLogo.png',50,50),
+            @('Square44x44Logo.png',44,44),
+            @('Square150x150Logo.png',150,150)
+          )) {
+            $name = [string]$spec[0]; $w = [int]$spec[1]; $h = [int]$spec[2]
+            $bmp = New-Object System.Drawing.Bitmap($w,$h)
+            try {
+              $g = [System.Drawing.Graphics]::FromImage($bmp)
+              try {
+                $g.Clear([System.Drawing.Color]::White)
+                $pen = New-Object System.Drawing.Pen([System.Drawing.Color]::Black,2)
+                try { $g.DrawRectangle($pen,1,1,$w-3,$h-3) } finally { $pen.Dispose() }
+              } finally { $g.Dispose() }
+              $bmp.Save((Join-Path $assets $name),[System.Drawing.Imaging.ImageFormat]::Png)
+            } finally { $bmp.Dispose() }
+          }
+          Write-Host 'QA_ASSETS=GENERATED_NOT_STORE_APPROVED'
+
+      - name: Build and verify QA-only unsigned MSIX
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $qaVersion = "1.0.$($env:GITHUB_RUN_NUMBER).0"
+          $exe = Join-Path $env:RUNNER_TEMP 'group-c-qa-exe/FolderPrivacyAuditor.exe'
+          $assets = Join-Path $env:RUNNER_TEMP 'group-c-qa-assets'
+          & ./store/build-msix.ps1 -ExePath $exe -AssetsDirectory $assets -QaUnsignedVersion $qaVersion
+          if ($LASTEXITCODE -ne 0) { throw "QA MSIX builder reported failure: $LASTEXITCODE" }
+          Write-Host "QA_UNSIGNED_VERSION=$qaVersion"
+          Write-Host 'STORE_SUBMISSION_AUTHORIZED=FALSE'
+
+      - name: Preserve QA-only MSIX and verification evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: group-c-QA_UNSIGNED-validation-msix-${{ github.run_id }}-${{ github.run_attempt }}
+          path: dist-store/**
+          if-no-files-found: error
+          retention-days: 30
+
       - name: Download verified portable EXE
         if: steps.storegate.outputs.ready == 'true'
         uses: actions/download-artifact@v4
