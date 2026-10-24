@@ -85,7 +85,28 @@ if ($ValidateOnly) {
 $QaMode = -not [string]::IsNullOrWhiteSpace($QaUnsignedVersion)
 if ($QaMode) {
     Invoke-IdentityHelper -HelperArguments @('--validate-only')
-    if ($QaUnsignedVersion -notmatch '^[0-9]+\.[0-9]+\.[0-9]+\.0
+    if ($QaUnsignedVersion -notmatch '^[0-9]+[.][0-9]+[.][0-9]+[.]0$') {
+        throw 'QaUnsignedVersion must use N.N.N.0 form.'
+    }
+} else {
+    Invoke-IdentityHelper -HelperArguments @('--check-release-ready')
+}
+
+$IdentityDocument = Get-Content -LiteralPath $IdentityPath -Raw -Encoding UTF8 | ConvertFrom-Json
+if ($QaMode) {
+    foreach ($FieldName in @('store_id','display_name','identity_name','publisher','publisher_display_name')) {
+        $Field = $IdentityDocument.$FieldName
+        if ($null -eq $Field -or [string]::IsNullOrWhiteSpace([string]$Field.value) -or
+            $Field.verification_status -cne 'PARTNER_CENTER_VERIFIED') {
+            throw "QA MSIX identity field is not Partner Center verified: $FieldName"
+        }
+    }
+    $PackageVersion = $QaUnsignedVersion
+    $IdentityDocument.package_version.value = $PackageVersion
+} else {
+    $PackageVersion = [string]$IdentityDocument.package_version.value
+}
+$AppExe = 'FolderPrivacyAuditor.exe'
 if ([string]::IsNullOrWhiteSpace($ExePath) -or
     -not (Test-Path -LiteralPath $ExePath -PathType Leaf)) {
     throw 'Provide the validated FolderPrivacyAuditor.exe path with -ExePath.'
