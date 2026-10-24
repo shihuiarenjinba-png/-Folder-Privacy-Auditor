@@ -11,6 +11,7 @@ import stat
 from collections import defaultdict
 from pathlib import Path
 from i18n import translate
+from ui_desktop import bind_shortcuts, restore_window_state, save_window_state
 from tkinter import BOTH, END, LEFT, Button, Frame, Label, Listbox, StringVar, Tk, OptionMenu, filedialog, messagebox
 
 EMAIL_RE = re.compile(
@@ -345,6 +346,7 @@ class App:
         self.root.title("Folder Privacy Auditor — Windows")
         self.root.geometry("960x650")
         self.root.minsize(820, 540)
+        restore_window_state(self.root, "FolderPrivacyAuditor", min_width=820, min_height=540)
         self.folder: Path | None = None
         self.records: list[dict] = []
         self.busy = False
@@ -377,6 +379,24 @@ class App:
         self.listbox.pack(fill=BOTH, expand=True, padx=12, pady=12)
         Label(root, textvariable=self.status_text, anchor="w").pack(fill="x", padx=12, pady=(0, 10))
         self.root.after(150, self.poll_results)
+        bind_shortcuts(self.root, {
+            "<Control-O>": self.choose,
+            "<F5>": self.audit,
+            "<Control-S>": self.export,
+        })
+        self.root.protocol("WM_DELETE_WINDOW", self._close)
+        self._refresh_actions()
+
+    def _refresh_actions(self):
+        self.choose_button.configure(state="disabled" if self.busy else "normal")
+        self.audit_button.configure(state="normal" if self.folder and not self.busy else "disabled")
+        self.export_button.configure(state="normal" if self.records and not self.busy else "disabled")
+
+    def _close(self):
+        if self.busy:
+            return messagebox.showinfo("Folder Privacy Auditor", "Audit is still running.")
+        save_window_state(self.root, "FolderPrivacyAuditor")
+        self.root.destroy()
 
     def choose(self):
         if self.busy:
@@ -389,6 +409,7 @@ class App:
             self.status_text.set(translate("Choose Run audit to begin. Results will be read-only."))
             self.listbox.delete(0, END)
             self.listbox.insert(END, f"Folder: {self.folder.name}")
+            self._refresh_actions()
 
     def audit(self):
         if self.busy:
@@ -397,9 +418,7 @@ class App:
             return messagebox.showinfo("Folder Privacy Auditor", "Choose a folder first.")
         self.busy = True
         self.records = []
-        self.choose_button.configure(state="disabled")
-        self.audit_button.configure(state="disabled")
-        self.export_button.configure(state="disabled")
+        self._refresh_actions()
         self.status_text.set(translate("Auditing locally... this may take time for large folders."))
         selected = self.folder
 
@@ -417,17 +436,16 @@ class App:
             while True:
                 ok, payload = self.results_queue.get_nowait()
                 self.busy = False
-                self.choose_button.configure(state="normal")
-                self.audit_button.configure(state="normal")
-                self.export_button.configure(state="normal")
                 if not ok:
                     self.records = []
                     self.status_text.set(translate("Audit failed; no report created."))
                     messagebox.showerror("Folder Privacy Auditor", payload)
+                    self._refresh_actions()
                     continue
                 self.records = payload
                 self.render_filtered_results()
                 self.status_text.set(translate("Audit finished. No files were deleted. Review all uninspected areas."))
+                self._refresh_actions()
         except queue.Empty:
             pass
         self.root.after(150, self.poll_results)
