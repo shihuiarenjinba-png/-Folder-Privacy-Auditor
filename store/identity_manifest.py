@@ -276,9 +276,9 @@ def verify_manifest_identity(manifest_path: Path, document: dict[str, Any]) -> N
     if identity is None or properties is None:
         raise ValueError("Generated manifest is missing Identity or Properties.")
     expected_identity = {
-        "Name": document["identity_name"]["value"],
-        "Publisher": document["publisher"]["value"],
-        "Version": document["package_version"]["value"],
+        "Name": manifest_document["identity_name"]["value"],
+        "Publisher": manifest_document["publisher"]["value"],
+        "Version": manifest_document["package_version"]["value"],
         "ProcessorArchitecture": "x64",
     }
     for key, expected in expected_identity.items():
@@ -286,8 +286,8 @@ def verify_manifest_identity(manifest_path: Path, document: dict[str, Any]) -> N
             raise ValueError(f"Generated manifest Identity.{key} doesn't match the canonical JSON.")
 
     expected_properties = {
-        "DisplayName": document["display_name"]["value"],
-        "PublisherDisplayName": document["publisher_display_name"]["value"],
+        "DisplayName": manifest_document["display_name"]["value"],
+        "PublisherDisplayName": manifest_document["publisher_display_name"]["value"],
     }
     for key, expected in expected_properties.items():
         node = properties.find(_q(FOUNDATION_NS, key))
@@ -295,19 +295,36 @@ def verify_manifest_identity(manifest_path: Path, document: dict[str, Any]) -> N
             raise ValueError(f"Generated manifest Properties/{key} doesn't match the canonical JSON.")
 
     visual = root.find(f".//{_q(UAP_NS, 'VisualElements')}")
-    if visual is None or visual.attrib.get("DisplayName") != document["display_name"]["value"]:
+    if visual is None or visual.attrib.get("DisplayName") != manifest_document["display_name"]["value"]:
         raise ValueError("Generated manifest VisualElements.DisplayName doesn't match the canonical JSON.")
 
 
-def render_manifest(document: dict[str, Any], output_path: Path) -> None:
+def render_manifest(document: dict[str, Any], output_path: Path, *, qa_version: str | None = None) -> None:
     """Render an AppxManifest.xml from a complete, verified configuration.
 
     Production CLI calls this only with the canonical JSON. It intentionally
     refuses all unverified values and refuses to overwrite an existing file.
     """
-    blockers = release_blockers(document)
-    if blockers:
-        raise ValueError("Formal manifest generation blocked:\n- " + "\n- ".join(blockers))
+    if qa_version is None:
+        blockers = release_blockers(document)
+        if blockers:
+            raise ValueError("Formal manifest generation blocked:\n- " + "\n- ".join(blockers))
+        manifest_document = document
+    else:
+        validate_package_version(qa_version)
+        structural_errors = validate_identity_document(document)
+        if structural_errors:
+            raise ValueError("QA manifest identity JSON invalid:\n- " + "\n- ".join(structural_errors))
+        blockers = []
+        for name in MANIFEST_REQUIRED_FIELDS:
+            field = document[name]
+            if not field["value"] or field["verification_status"] != "PARTNER_CENTER_VERIFIED":
+                blockers.append(f"{name}: PARTNER_CENTER_VERIFIED value is required for QA packaging.")
+        if blockers:
+            raise ValueError("QA manifest generation blocked:\n- " + "\n- ".join(blockers))
+        manifest_document = json.loads(json.dumps(document))
+        manifest_manifest_document["package_version"]["value"] = qa_version
+        manifest_document["package_version"]["verification_status"] = "OWNER_APPROVED"
     output_path = Path(output_path)
     if output_path.exists():
         raise FileExistsError(f"Refusing to overwrite existing manifest: {output_path}")
@@ -327,15 +344,15 @@ def render_manifest(document: dict[str, Any], output_path: Path) -> None:
         root,
         _q(FOUNDATION_NS, "Identity"),
         {
-            "Name": document["identity_name"]["value"],
-            "Publisher": document["publisher"]["value"],
-            "Version": document["package_version"]["value"],
+            "Name": manifest_document["identity_name"]["value"],
+            "Publisher": manifest_document["publisher"]["value"],
+            "Version": manifest_document["package_version"]["value"],
             "ProcessorArchitecture": "x64",
         },
     )
     properties = ET.SubElement(root, _q(FOUNDATION_NS, "Properties"))
-    ET.SubElement(properties, _q(FOUNDATION_NS, "DisplayName")).text = document["display_name"]["value"]
-    ET.SubElement(properties, _q(FOUNDATION_NS, "PublisherDisplayName")).text = document["publisher_display_name"]["value"]
+    ET.SubElement(properties, _q(FOUNDATION_NS, "DisplayName")).text = manifest_document["display_name"]["value"]
+    ET.SubElement(properties, _q(FOUNDATION_NS, "PublisherDisplayName")).text = manifest_document["publisher_display_name"]["value"]
     ET.SubElement(properties, _q(FOUNDATION_NS, "Description")).text = "Local read-only folder privacy audit"
     ET.SubElement(properties, _q(FOUNDATION_NS, "Logo")).text = r"Assets\StoreLogo.png"
 
@@ -369,7 +386,7 @@ def render_manifest(document: dict[str, Any], output_path: Path) -> None:
         application,
         _q(UAP_NS, "VisualElements"),
         {
-            "DisplayName": document["display_name"]["value"],
+            "DisplayName": manifest_document["display_name"]["value"],
             "Description": "Local read-only folder privacy audit",
             "BackgroundColor": "transparent",
             "Square150x150Logo": r"Assets\Square150x150Logo.png",
@@ -384,7 +401,7 @@ def render_manifest(document: dict[str, Any], output_path: Path) -> None:
     output_path.write_bytes(
         ET.tostring(root, encoding="utf-8", xml_declaration=True)
     )
-    verify_manifest_identity(output_path, document)
+    verify_manifest_identity(output_path, manifest_document)
 
 
 def _read_canonical() -> dict[str, Any]:
@@ -397,6 +414,7 @@ def main(argv: list[str] | None = None) -> int:
     group.add_argument("--validate-only", action="store_true", help="Validate JSON/schema structure without requiring release readiness.")
     group.add_argument("--check-release-ready", action="store_true", help="Return nonzero unless all release-required values are verified.")
     group.add_argument("--render-manifest", metavar="PATH", help="Render a production manifest only when the canonical config is release-ready.")
+    parser.add_argument("--qa-version", help="QA-only numeric package version; does not authorize Store submission.")
     args = parser.parse_args(argv)
 
     try:
@@ -424,9 +442,12 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.render_manifest:
             output_path = Path(args.render_manifest)
-            render_manifest(document, output_path)
+            render_manifest(document, output_path, qa_version=args.qa_version)
             print(f"MANIFEST_CREATED={output_path}")
             print("MANIFEST_IDENTITY_MATCH=PASS")
+            if args.qa_version:
+                print(f"QA_UNSIGNED_VERSION={args.qa_version}")
+                print("STORE_SUBMISSION_AUTHORIZED=FALSE")
             return 0
     except (ValueError, OSError) as exc:
         print(f"IDENTITY_ERROR: {exc}", file=sys.stderr)
