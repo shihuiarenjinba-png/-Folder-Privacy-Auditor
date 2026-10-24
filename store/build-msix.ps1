@@ -13,6 +13,7 @@ Set-StrictMode -Version Latest
 
 $Root = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $ExpectedBranch = 'codex/store-p1-folder-privacy-20261023'
+$UpgradeQaBranch = 'codex/folder-privacy-auditor-upgrade-20261024'
 $IdentityPath = Join-Path $PSScriptRoot 'partner-center-identity.json'
 $IdentityHelper = Join-Path $PSScriptRoot 'identity_manifest.py'
 if (-not (Test-Path -LiteralPath $IdentityPath -PathType Leaf)) {
@@ -36,9 +37,14 @@ if ($RemoteUrl -notmatch '(?i)github[.]com[:/]shihuiarenjinba-png/-Folder-Privac
 Invoke-GitText -GitArguments @('fetch','origin') | Out-Null
 $Branch = Invoke-GitText -GitArguments @('branch','--show-current')
 $SourceSha = Invoke-GitText -GitArguments @('rev-parse','HEAD')
-$RemoteSha = Invoke-GitText -GitArguments @('rev-parse',('origin/' + $ExpectedBranch))
+$RemoteSha = Invoke-GitText -GitArguments @('rev-parse',('origin/' + $Branch))
 $DirtyState = Invoke-GitText -GitArguments @('status','--porcelain','--untracked-files=all')
-if ($Branch -cne $ExpectedBranch) { throw "Wrong working branch: $Branch" }
+# Keep production branch pinned. Permit only this upgrade branch in explicit QA_UNSIGNED mode.
+if ($Branch -cne $ExpectedBranch) {
+    if ($Branch -cne $UpgradeQaBranch -or [string]::IsNullOrWhiteSpace($QaUnsignedVersion)) {
+        throw "Wrong working branch for requested release mode: $Branch"
+    }
+}
 if ($SourceSha -notmatch '^[0-9a-f]{40}$' -or $RemoteSha -cne $SourceSha) { throw 'Local and remote HEAD must be identical.' }
 if ($DirtyState) { throw 'Uncommitted or untracked changes exist; stopped before validation or packaging.' }
 
