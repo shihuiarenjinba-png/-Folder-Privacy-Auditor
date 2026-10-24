@@ -118,7 +118,7 @@ if ($null -eq $MakeAppxCommand) {
 }
 
 $Output = Join-Path $Root 'dist-store'
-$PackagePath = Join-Path $Output ("FolderPrivacyAuditor_" + $PackageVersion + '_x64.msix')
+$PackagePath = Join-Path $Output ("FolderPrivacyAuditor_QA_UNSIGNED_" + $PackageVersion + '_x64.msix')
 if (Test-Path -LiteralPath $PackagePath) {
     throw "Refusing to overwrite an existing package. Use an owner-approved new package_version: $PackagePath"
 }
@@ -222,14 +222,14 @@ try {
     Assert-ManifestMatchesIdentity -Path (Join-Path $Roundtrip 'AppxManifest.xml') -Expected $IdentityDocument
 
     $PackageHash = (Get-FileHash -LiteralPath $PackagePath -Algorithm SHA256).Hash
-    Write-Host "MSIX_CANDIDATE=$PackagePath"
+    Write-Host "QA_UNSIGNED_MSIX=$PackagePath"
     Write-Host "MSIX_SHA256=$PackageHash"
     Write-Host "SOURCE_EXE_SHA256=$OriginalHash"
     Write-Host "SOURCE_SHA=$SourceSha"
     Write-Host "MANIFEST_IDENTITY_MATCH=PASS"
     Write-Host 'PACKAGE_SIGNATURE=NOT_ADDED'
     Write-Host 'STORE_SUBMISSION=NOT_PERFORMED'
-    Write-Host 'IMPORTANT: This is only a package candidate. It was not installed, signed, submitted, or certified.'
+    Write-Host 'IMPORTANT: QA_UNSIGNED package only. It was not installed, signed, submitted, or certified.'
 } catch {
     if ($PackageProducedByThisRun -and (Test-Path -LiteralPath $PackagePath -PathType Leaf)) {
         Remove-Item -LiteralPath $PackagePath -Force -ErrorAction SilentlyContinue
