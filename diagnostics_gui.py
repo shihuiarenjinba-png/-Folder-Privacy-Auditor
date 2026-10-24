@@ -26,6 +26,8 @@ class DiagnosticsDialog(tk.Toplevel):
         self.report_folder = tk.StringVar(value=str(Path.home() / "Documents" / "FolderPrivacyAuditorReports"))
         self.previous = tk.StringVar()
         self.scan_mode = tk.StringVar(value="duplicates")
+        self.exclusion = tk.StringVar()
+        self.extension_filter = tk.StringVar()
         self.status = tk.StringVar(value=self.t("監視・スキャンは停止しています", "Scan is idle"))
         self.events: queue.Queue = queue.Queue()
         self.cancel_event = threading.Event()
@@ -72,6 +74,17 @@ class DiagnosticsDialog(tk.Toplevel):
         selector = ttk.Combobox(duplicate_tab, textvariable=self.mode_display, state="readonly",
                                 values=[a for a, _ in choices], width=46)
         selector.pack(anchor="w", pady=5)
+        advanced = ttk.LabelFrame(duplicate_tab, text=self.t("絞り込み（任意）", "Optional filters"), padding=6)
+        advanced.pack(fill="x", pady=4)
+        ttk.Label(advanced, text=self.t("除外フォルダ（1件）", "Excluded folder (one)")).grid(
+            row=0, column=0, sticky="w")
+        ttk.Entry(advanced, textvariable=self.exclusion).grid(row=0, column=1, sticky="ew")
+        ttk.Button(advanced, text="...", command=lambda: self.choose(self.exclusion, False)).grid(
+            row=0, column=2, padx=4)
+        ttk.Label(advanced, text=self.t("拡張子（例: jpg,png）", "Extensions (e.g. jpg,png)")).grid(
+            row=1, column=0, sticky="w")
+        ttk.Entry(advanced, textvariable=self.extension_filter).grid(row=1, column=1, sticky="ew")
+        advanced.columnconfigure(1, weight=1)
         ttk.Button(duplicate_tab, text=self.t("検査を開始", "Start scan"),
                    command=self.start_fast).pack(anchor="w", pady=8)
         ttk.Label(duplicate_tab, text=self.t(
@@ -184,8 +197,11 @@ class DiagnosticsDialog(tk.Toplevel):
 
     def start_fast(self):
         mode = self.mode_names.get(self.mode_display.get(), "duplicates")
+        excluded = tuple(x.strip() for x in self.exclusion.get().split(";") if x.strip())
+        extensions = tuple(x.strip() for x in self.extension_filter.get().split(",") if x.strip())
         self._start("fast", lambda root, reports, cancel: scan(
-            root, mode, report_directory=reports, cancel_event=cancel))
+            root, mode, report_directory=reports, cancel_event=cancel,
+            excluded=excluded, extensions=extensions))
 
     def start_storage(self):
         prior = self.previous.get().strip() or None
@@ -294,7 +310,7 @@ class DiagnosticsDialog(tk.Toplevel):
                 self.progress.stop()
                 if kind == "done":
                     try:
-                        raw = json.loads(Path(data).read_text(encoding="utf-8-sig"))
+                        raw = json.loads(Path(data).read_text(encoding="utf-8-sig")) if self.current_kind == "storage" else None
                         if self.current_kind == "storage":
                             summary = [
                                 self.t("論理サイズ（MiB）", "Logical MiB") +
@@ -311,8 +327,9 @@ class DiagnosticsDialog(tk.Toplevel):
                                             f": {raw['growth_total_logical_bytes'] / (1024 * 1024):+,.1f} MiB"]
                             preview = "\n".join(summary)
                         else:
-                            preview = self.t("Czkawkaの生データ（先頭のみ）:", "Original Czkawka JSON (excerpt):") + "\n" + (
-                                json.dumps(raw, ensure_ascii=False, indent=2)[:8000])
+                            with Path(data).open("r", encoding="utf-8-sig") as stream:
+                                excerpt = stream.read(8000)
+                            preview = self.t("Czkawkaの生データ（先頭のみ）:", "Original Czkawka JSON (excerpt):") + "\n" + excerpt
                         self._display(preview)
                         self.status.set(self.t("完了（削除なし）。レポート: ", "Done (no deletion). Report: ") + str(data))
                     except Exception as exc:
