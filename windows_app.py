@@ -10,6 +10,7 @@ import re
 import stat
 from collections import defaultdict
 from pathlib import Path
+from i18n import translate
 from tkinter import BOTH, END, LEFT, Button, Frame, Label, Listbox, StringVar, Tk, OptionMenu, filedialog, messagebox
 
 EMAIL_RE = re.compile(
@@ -348,7 +349,7 @@ class App:
         self.records: list[dict] = []
         self.busy = False
         self.results_queue = queue.Queue()
-        self.status_text = StringVar(value="Choose a folder. Audit does not modify input files.")
+        self.status_text = StringVar(value=translate("Choose a folder. Audit does not modify input files."))
         self.filter_status = StringVar(value="ALL")
 
         head = Frame(root, padx=12, pady=12)
@@ -385,7 +386,7 @@ class App:
             self.folder = Path(p)
             self.records = []
             self.filter_status.set("ALL")
-            self.status_text.set("Choose Run audit to begin. Results will be read-only.")
+            self.status_text.set(translate("Choose Run audit to begin. Results will be read-only."))
             self.listbox.delete(0, END)
             self.listbox.insert(END, f"Folder: {self.folder.name}")
 
@@ -399,7 +400,7 @@ class App:
         self.choose_button.configure(state="disabled")
         self.audit_button.configure(state="disabled")
         self.export_button.configure(state="disabled")
-        self.status_text.set("Auditing locally... this may take time for large folders.")
+        self.status_text.set(translate("Auditing locally... this may take time for large folders."))
         selected = self.folder
 
         def scan_worker():
@@ -421,12 +422,12 @@ class App:
                 self.export_button.configure(state="normal")
                 if not ok:
                     self.records = []
-                    self.status_text.set("Audit failed; no report created.")
+                    self.status_text.set(translate("Audit failed; no report created."))
                     messagebox.showerror("Folder Privacy Auditor", payload)
                     continue
                 self.records = payload
                 self.render_filtered_results()
-                self.status_text.set("Audit finished. No files were deleted. Review all uninspected areas.")
+                self.status_text.set(translate("Audit finished. No files were deleted. Review all uninspected areas."))
         except queue.Empty:
             pass
         self.root.after(150, self.poll_results)
