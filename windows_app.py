@@ -359,11 +359,11 @@ class App:
 
         controls = Frame(root, padx=12)
         controls.pack(fill="x")
-        self.choose_button = Button(controls, text="Choose folder", width=16, command=self.choose)
+        self.choose_button = Button(controls, text="1  Choose folder", width=16, command=self.choose)
         self.choose_button.pack(side=LEFT)
-        self.audit_button = Button(controls, text="Run audit", width=16, command=self.audit)
+        self.audit_button = Button(controls, text="2  Run audit", width=16, command=self.audit)
         self.audit_button.pack(side=LEFT, padx=8)
-        self.export_button = Button(controls, text="Export CSV + JSON", width=18, command=self.export)
+        self.export_button = Button(controls, text="3  Save report (CSV + JSON)", width=24, command=self.export)
         self.export_button.pack(side=LEFT)
 
         filters = Frame(root, padx=12)
