@@ -355,6 +355,7 @@ class App:
         head.pack(fill="x")
         Label(head, text="Folder Privacy Auditor", font=("Segoe UI", 20, "bold")).pack(anchor="w")
         Label(head, text="Choose folder → inspect → export report. Read-only; never deletes anything.").pack(anchor="w")
+        Label(head, text="① Choose folder  →  ② Run audit  →  ③ Review flagged items  →  ④ Save report", font=("Segoe UI", 10, "bold"), wraplength=900, justify=LEFT).pack(anchor="w", pady=(4, 0))
 
         controls = Frame(root, padx=12)
         controls.pack(fill="x")
