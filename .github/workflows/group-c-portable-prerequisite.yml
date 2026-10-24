@@ -12,10 +12,10 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 50
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - name: Validate PowerShell syntax before build
@@ -87,7 +87,7 @@ jobs:
             }
           }
       - name: Preserve isolated build evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: success()
         with:
           name: group-c-prerequisite-${{ github.run_id }}-${{ github.run_attempt }}
@@ -103,11 +103,11 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: Fresh checkout for clean Store package gate
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Set up Python for Store validation
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.12'
 
@@ -149,14 +149,14 @@ jobs:
 
       - name: Preserve Store readiness report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: group-c-msix-preflight-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/group-c-msix-preflight.json
           if-no-files-found: error
           retention-days: 14
       - name: Download verified portable EXE for QA MSIX
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: group-c-prerequisite-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/group-c-qa-exe
@@ -200,7 +200,7 @@ jobs:
           Write-Host 'STORE_SUBMISSION_AUTHORIZED=FALSE'
 
       - name: Preserve QA-only MSIX and verification evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: group-c-QA_UNSIGNED-validation-msix-${{ github.run_id }}-${{ github.run_attempt }}
           path: dist-store/**
@@ -209,7 +209,7 @@ jobs:
 
       - name: Download verified portable EXE
         if: steps.storegate.outputs.ready == 'true'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: group-c-prerequisite-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/group-c-exe
@@ -226,7 +226,7 @@ jobs:
 
       - name: Preserve unsigned MSIX candidate evidence
         if: steps.storegate.outputs.ready == 'true' && success()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: group-c-QA_UNSIGNED-msix-${{ github.run_id }}-${{ github.run_attempt }}
           path: dist-store/**
