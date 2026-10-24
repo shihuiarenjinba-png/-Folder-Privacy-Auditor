@@ -368,6 +368,9 @@ class App:
         self.audit_button.pack(side=LEFT, padx=8)
         self.export_button = Button(controls, text="3  Save report (CSV + JSON)", width=24, command=self.export)
         self.export_button.pack(side=LEFT)
+        self.diagnostics_button = Button(controls, text="4  Diagnostics", width=19,
+                                         command=self.open_diagnostics)
+        self.diagnostics_button.pack(side=LEFT, padx=(8, 0))
 
         filters = Frame(root, padx=12)
         filters.pack(fill="x", pady=(10, 0))
@@ -397,6 +400,11 @@ class App:
             return messagebox.showinfo("Folder Privacy Auditor", "Audit is still running.")
         save_window_state(self.root, "FolderPrivacyAuditor")
         self.root.destroy()
+
+    def open_diagnostics(self):
+        """Preserve the existing privacy workflow; open separate read-only tools."""
+        from diagnostics_gui import DiagnosticsDialog
+        DiagnosticsDialog(self.root, self.folder)
 
     def choose(self):
         if self.busy:
