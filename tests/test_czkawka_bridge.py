@@ -41,7 +41,7 @@ class CzkawkaBridgeTests(unittest.TestCase):
         self.assertEqual(argv[argv.index("-s") + 1], "HASH")
         self.assertEqual(argv[argv.index("-t") + 1], "BLAKE3")
         self.assertEqual(argv[argv.index("-m") + 1], "1")
-        self.assertIn(str(self.root / "exclude"), argv)
+        self.assertIn(str((self.root / "exclude").resolve()), argv)
         self.assertIn("png", argv)
 
     def test_reject_unsafe_choices(self):
