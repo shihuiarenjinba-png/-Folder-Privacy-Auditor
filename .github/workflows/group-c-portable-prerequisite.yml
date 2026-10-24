@@ -139,7 +139,7 @@ jobs:
         if: steps.storegate.outputs.ready == 'true' && success()
         uses: actions/upload-artifact@v4
         with:
-          name: group-c-msix-candidate-${{ github.run_id }}-${{ github.run_attempt }}
+          name: group-c-QA_UNSIGNED-msix-${{ github.run_id }}-${{ github.run_attempt }}
           path: dist-store/**
           if-no-files-found: error
           retention-days: 30
