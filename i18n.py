@@ -10,6 +10,9 @@ _CONTROLLERS = []
 _PATCHED = False
 
 TEXTS = {
+    "1  Choose folder": ("1  Choose folder", "1  フォルダを選択"),
+    "2  Run audit": ("2  Run audit", "2  監査を実行"),
+    "3  Save report (CSV + JSON)": ("3  Save report (CSV + JSON)", "3  レポートを保存 (CSV + JSON)"),
     "① Choose folder  →  ② Run audit  →  ③ Review flagged items  →  ④ Save report": ("① Choose folder  →  ② Run audit  →  ③ Review flagged items  →  ④ Save report", "① フォルダを選択  →  ② 監査を実行  →  ③ 要確認項目を見る  →  ④ レポートを保存"),
     "Folder Privacy Auditor": ("Folder Privacy Auditor", "フォルダプライバシー監査"),
     "Folder Privacy Auditor — Windows": ("Folder Privacy Auditor — Windows", "フォルダプライバシー監査 — Windows"),
