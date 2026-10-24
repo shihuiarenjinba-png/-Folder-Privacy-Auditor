@@ -5,7 +5,8 @@
 param(
     [string]$ExePath = "",
     [string]$AssetsDirectory = "",
-    [switch]$ValidateOnly
+    [switch]$ValidateOnly,
+    [string]$QaUnsignedVersion = ""
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -79,12 +80,200 @@ if ($ValidateOnly) {
     return
 }
 
-# Release readiness is checked before touching the EXE, assets, output, or MakeAppx.
-# There are deliberately no IdentityName/Publisher/DisplayName overrides.
-Invoke-IdentityHelper -HelperArguments @('--check-release-ready')
+# Formal builds keep the strict release gate. QA_UNSIGNED builds may use a
+# synthetic numeric version, but still require the canonical Store identity.
+$QaMode = -not [string]::IsNullOrWhiteSpace($QaUnsignedVersion)
+if ($QaMode) {
+    Invoke-IdentityHelper -HelperArguments @('--validate-only')
+    if ($QaUnsignedVersion -notmatch '^[0-9]+\.[0-9]+\.[0-9]+\.0
+if ([string]::IsNullOrWhiteSpace($ExePath) -or
+    -not (Test-Path -LiteralPath $ExePath -PathType Leaf)) {
+    throw 'Provide the validated FolderPrivacyAuditor.exe path with -ExePath.'
+}
+$ExePath = (Resolve-Path -LiteralPath $ExePath).Path
+if ([string]::IsNullOrWhiteSpace($AssetsDirectory) -or
+    -not (Test-Path -LiteralPath $AssetsDirectory -PathType Container)) {
+    throw 'Provide the approved brand assets directory with -AssetsDirectory.'
+}
+$AssetsDirectory = (Resolve-Path -LiteralPath $AssetsDirectory).Path
+
+$MakeAppxCommand = Get-Command MakeAppx.exe -ErrorAction SilentlyContinue
+if ($null -eq $MakeAppxCommand) {
+    $Kits = Join-Path ([Environment]::GetFolderPath('ProgramFilesX86')) 'Windows Kits\10\bin'
+    if (Test-Path -LiteralPath $Kits) {
+        $Found = @(Get-ChildItem -LiteralPath $Kits -Recurse -File -Filter 'MakeAppx.exe' -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -match '\\x64\\MakeAppx\.exe$' } |
+            Sort-Object FullName -Descending)
+        if ($Found.Count -gt 0) {
+            $MakeAppxPath = $Found[0].FullName
+        } else {
+            throw 'Windows SDK MakeAppx.exe was not found.'
+        }
+    } else {
+        throw 'Windows SDK MakeAppx.exe was not found.'
+    }
+} else {
+    $MakeAppxPath = $MakeAppxCommand.Source
+}
+
+$Output = Join-Path $Root 'dist-store'
+$PackagePath = Join-Path $Output ("FolderPrivacyAuditor_QA_UNSIGNED_" + $PackageVersion + '_x64.msix')
+if (Test-Path -LiteralPath $PackagePath) {
+    throw "Refusing to overwrite an existing package: $PackagePath"
+}
+
+$Stage = Join-Path $env:TEMP ('FolderPrivacyAuditor-stage-' + [guid]::NewGuid().ToString('N'))
+$Roundtrip = Join-Path $env:TEMP ('FolderPrivacyAuditor-verify-' + [guid]::NewGuid().ToString('N'))
+$PackageProducedByThisRun = $false
+try {
+    New-Item -ItemType Directory -Path $Stage -Force | Out-Null
+    Copy-Item -LiteralPath $ExePath -Destination (Join-Path $Stage $AppExe) -ErrorAction Stop
+    Set-Content -LiteralPath (Join-Path $Stage 'SOURCE_GIT_COMMIT.txt') -Value $SourceSha -Encoding ASCII
+    $StageAssets = Join-Path $Stage 'Assets'
+    New-Item -ItemType Directory -Path $StageAssets -Force | Out-Null
+
+    foreach ($Item in @(
+        @('StoreLogo.png', 50, 50),
+        @('Square44x44Logo.png', 44, 44),
+        @('Square150x150Logo.png', 150, 150)
+    )) {
+        $Filename = [string]$Item[0]
+        $Original = Join-Path $AssetsDirectory $Filename
+        if (-not (Test-Path -LiteralPath $Original -PathType Leaf)) {
+            throw "Missing approved product asset: $Filename"
+        }
+        $Bytes = [IO.File]::ReadAllBytes($Original)
+        if ($Bytes.Length -lt 24 -or $Bytes[0] -ne 137 -or $Bytes[1] -ne 80 -or
+            $Bytes[2] -ne 78 -or $Bytes[3] -ne 71 -or $Bytes[12] -ne 73 -or
+            $Bytes[13] -ne 72 -or $Bytes[14] -ne 68 -or $Bytes[15] -ne 82) {
+            throw "Invalid PNG signature/IHDR: $Filename"
+        }
+        $Width = 0; $Height = 0
+        for ($i = 16; $i -lt 20; $i++) { $Width = ($Width * 256) + [int]$Bytes[$i] }
+        for ($i = 20; $i -lt 24; $i++) { $Height = ($Height * 256) + [int]$Bytes[$i] }
+        if ($Width -ne [int]$Item[1] -or $Height -ne [int]$Item[2]) {
+            throw "Wrong PNG dimensions for $Filename : $Width x $Height"
+        }
+        Copy-Item -LiteralPath $Original -Destination (Join-Path $StageAssets $Filename) -ErrorAction Stop
+    }
+
+    $ManifestPath = Join-Path $Stage 'AppxManifest.xml'
+    if ($QaMode) {
+        Invoke-IdentityHelper -HelperArguments @('--render-manifest', $ManifestPath, '--qa-version', $PackageVersion)
+    } else {
+        Invoke-IdentityHelper -HelperArguments @('--render-manifest', $ManifestPath)
+    }
+
+    function Assert-ManifestMatchesIdentity {
+        param([string]$Path, [object]$Expected)
+        [xml]$ManifestXml = Get-Content -LiteralPath $Path -Raw -Encoding UTF8
+        $Namespaces = New-Object System.Xml.XmlNamespaceManager($ManifestXml.NameTable)
+        $Namespaces.AddNamespace('f', 'http://schemas.microsoft.com/appx/manifest/foundation/windows10')
+        $Namespaces.AddNamespace('uap', 'http://schemas.microsoft.com/appx/manifest/uap/windows10')
+        $IdNode = $ManifestXml.SelectSingleNode('/f:Package/f:Identity', $Namespaces)
+        $PropsNode = $ManifestXml.SelectSingleNode('/f:Package/f:Properties', $Namespaces)
+        $DependencyNode = $ManifestXml.SelectSingleNode('/f:Package/f:Dependencies/f:TargetDeviceFamily', $Namespaces)
+        $ApplicationNode = $ManifestXml.SelectSingleNode('/f:Package/f:Applications/f:Application', $Namespaces)
+        $VisualNode = $ManifestXml.SelectSingleNode('/f:Package/f:Applications/f:Application/uap:VisualElements', $Namespaces)
+        if ($null -eq $IdNode -or $null -eq $PropsNode -or $null -eq $DependencyNode -or
+            $null -eq $ApplicationNode -or $null -eq $VisualNode) {
+            throw "Manifest is missing a required identity/dependency/application/display element: $Path"
+        }
+        if ($IdNode.GetAttribute('Name') -cne [string]$Expected.identity_name.value -or
+            $IdNode.GetAttribute('Publisher') -cne [string]$Expected.publisher.value -or
+            $IdNode.GetAttribute('Version') -cne [string]$Expected.package_version.value -or
+            $IdNode.GetAttribute('ProcessorArchitecture') -cne 'x64') {
+            throw "Manifest Identity does not match the canonical identity JSON: $Path"
+        }
+        if ($DependencyNode.GetAttribute('Name') -cne 'Windows.Desktop' -or
+            $DependencyNode.GetAttribute('MinVersion') -cne '10.0.19041.0') {
+            throw "Manifest TargetDeviceFamily does not match the approved Windows packaging route: $Path"
+        }
+        if ($ApplicationNode.GetAttribute('Id') -cne 'App' -or
+            $ApplicationNode.GetAttribute('Executable') -cne $AppExe) {
+            throw "Manifest Application Id/Executable does not match the expected package entry point: $Path"
+        }
+        $DisplayNode = $PropsNode.SelectSingleNode('f:DisplayName', $Namespaces)
+        $PublisherNode = $PropsNode.SelectSingleNode('f:PublisherDisplayName', $Namespaces)
+        if ($null -eq $DisplayNode -or $DisplayNode.InnerText -cne [string]$Expected.display_name.value) {
+            throw "Manifest Properties/DisplayName doesn't match the canonical JSON: $Path"
+        }
+        if ($null -eq $PublisherNode -or $PublisherNode.InnerText -cne [string]$Expected.publisher_display_name.value) {
+            throw "Manifest Properties/PublisherDisplayName doesn't match the canonical JSON: $Path"
+        }
+        if ($VisualNode.GetAttribute('DisplayName') -cne [string]$Expected.display_name.value) {
+            throw "Manifest VisualElements.DisplayName doesn't match the canonical JSON: $Path"
+        }
+    }
+    Assert-ManifestMatchesIdentity -Path $ManifestPath -Expected $IdentityDocument
+
+    if (-not (Test-Path -LiteralPath $Output)) {
+        New-Item -ItemType Directory -Path $Output | Out-Null
+    }
+    & $MakeAppxPath pack /d $Stage /p $PackagePath
+    $PackExitCode = $LASTEXITCODE
+    if ($PackExitCode -ne 0 -or -not (Test-Path -LiteralPath $PackagePath -PathType Leaf)) {
+        throw "MakeAppx packaging failed (exit code $PackExitCode). Any partial output, if present, was preserved for review."
+    }
+    $PackageProducedByThisRun = $true
+
+    New-Item -ItemType Directory -Path $Roundtrip | Out-Null
+    & $MakeAppxPath unpack /p $PackagePath /d $Roundtrip
+    $UnpackExitCode = $LASTEXITCODE
+    if ($UnpackExitCode -ne 0) {
+        throw "MSIX unpack verification failed (exit code $UnpackExitCode)."
+    }
+
+    $OriginalHash = (Get-FileHash -LiteralPath $ExePath -Algorithm SHA256).Hash
+    $UnpackedExe = Join-Path $Roundtrip $AppExe
+    if (-not (Test-Path -LiteralPath $UnpackedExe -PathType Leaf)) {
+        throw 'Unpacked MSIX executable is missing.'
+    }
+    $UnpackedHash = (Get-FileHash -LiteralPath $UnpackedExe -Algorithm SHA256).Hash
+    if ($OriginalHash -cne $UnpackedHash) {
+        throw 'MSIX roundtrip executable SHA-256 mismatch.'
+    }
+    Assert-ManifestMatchesIdentity -Path (Join-Path $Roundtrip 'AppxManifest.xml') -Expected $IdentityDocument
+
+    $PackageHash = (Get-FileHash -LiteralPath $PackagePath -Algorithm SHA256).Hash
+    Write-Host "QA_UNSIGNED_MSIX=$PackagePath"
+    Write-Host "MSIX_SHA256=$PackageHash"
+    Write-Host "SOURCE_EXE_SHA256=$OriginalHash"
+    Write-Host "SOURCE_SHA=$SourceSha"
+    Write-Host "MANIFEST_IDENTITY_MATCH=PASS"
+    Write-Host 'PACKAGE_SIGNATURE=NOT_ADDED'
+    Write-Host 'STORE_SUBMISSION=NOT_PERFORMED'
+    Write-Host 'IMPORTANT: QA_UNSIGNED package only. It was not installed, signed, submitted, or certified.'
+} catch {
+    if ($PackageProducedByThisRun -and (Test-Path -LiteralPath $PackagePath -PathType Leaf)) {
+        Remove-Item -LiteralPath $PackagePath -Force -ErrorAction SilentlyContinue
+    }
+    throw
+} finally {
+    if (Test-Path -LiteralPath $Stage) { Remove-Item -LiteralPath $Stage -Recurse -Force }
+    if (Test-Path -LiteralPath $Roundtrip) { Remove-Item -LiteralPath $Roundtrip -Recurse -Force }
+}
+) {
+        throw 'QaUnsignedVersion must use N.N.N.0 form.'
+    }
+} else {
+    Invoke-IdentityHelper -HelperArguments @('--check-release-ready')
+}
 
 $IdentityDocument = Get-Content -LiteralPath $IdentityPath -Raw -Encoding UTF8 | ConvertFrom-Json
-$PackageVersion = [string]$IdentityDocument.package_version.value
+if ($QaMode) {
+    foreach ($FieldName in @('store_id','display_name','identity_name','publisher','publisher_display_name')) {
+        $Field = $IdentityDocument.$FieldName
+        if ($null -eq $Field -or [string]::IsNullOrWhiteSpace([string]$Field.value) -or
+            $Field.verification_status -cne 'PARTNER_CENTER_VERIFIED') {
+            throw "QA MSIX identity field is not Partner Center verified: $FieldName"
+        }
+    }
+    $PackageVersion = $QaUnsignedVersion
+    $IdentityDocument.package_version.value = $PackageVersion
+} else {
+    $PackageVersion = [string]$IdentityDocument.package_version.value
+}
 $AppExe = 'FolderPrivacyAuditor.exe'
 
 if ([string]::IsNullOrWhiteSpace($ExePath) -or
