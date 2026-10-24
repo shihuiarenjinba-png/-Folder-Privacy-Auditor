@@ -169,15 +169,26 @@ try {
         $Namespaces.AddNamespace('uap', 'http://schemas.microsoft.com/appx/manifest/uap/windows10')
         $IdNode = $ManifestXml.SelectSingleNode('/f:Package/f:Identity', $Namespaces)
         $PropsNode = $ManifestXml.SelectSingleNode('/f:Package/f:Properties', $Namespaces)
+        $DependencyNode = $ManifestXml.SelectSingleNode('/f:Package/f:Dependencies/f:TargetDeviceFamily', $Namespaces)
+        $ApplicationNode = $ManifestXml.SelectSingleNode('/f:Package/f:Applications/f:Application', $Namespaces)
         $VisualNode = $ManifestXml.SelectSingleNode('/f:Package/f:Applications/f:Application/uap:VisualElements', $Namespaces)
-        if ($null -eq $IdNode -or $null -eq $PropsNode -or $null -eq $VisualNode) {
-            throw "Manifest is missing a required identity/display element: $Path"
+        if ($null -eq $IdNode -or $null -eq $PropsNode -or $null -eq $DependencyNode -or
+            $null -eq $ApplicationNode -or $null -eq $VisualNode) {
+            throw "Manifest is missing a required identity/dependency/application/display element: $Path"
         }
         if ($IdNode.GetAttribute('Name') -cne [string]$Expected.identity_name.value -or
             $IdNode.GetAttribute('Publisher') -cne [string]$Expected.publisher.value -or
             $IdNode.GetAttribute('Version') -cne [string]$Expected.package_version.value -or
             $IdNode.GetAttribute('ProcessorArchitecture') -cne 'x64') {
             throw "Manifest Identity does not match the canonical identity JSON: $Path"
+        }
+        if ($DependencyNode.GetAttribute('Name') -cne 'Windows.Desktop' -or
+            $DependencyNode.GetAttribute('MinVersion') -cne '10.0.19041.0') {
+            throw "Manifest TargetDeviceFamily does not match the approved Windows packaging route: $Path"
+        }
+        if ($ApplicationNode.GetAttribute('Id') -cne 'App' -or
+            $ApplicationNode.GetAttribute('Executable') -cne $AppExe) {
+            throw "Manifest Application Id/Executable does not match the expected package entry point: $Path"
         }
         $DisplayNode = $PropsNode.SelectSingleNode('f:DisplayName', $Namespaces)
         $PublisherNode = $PropsNode.SelectSingleNode('f:PublisherDisplayName', $Namespaces)
